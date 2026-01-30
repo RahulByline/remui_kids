@@ -5717,6 +5717,7 @@ echo $OUTPUT->header();
                                     if ($folder_name) {
                                         echo '<span class="resource-card-tag resource-card-tag-folder">' . html_entity_decode($folder_name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</span>';
                                     }
+                                    
                                     echo '</div>';
                                     echo '<div class="resource-card-actions">';
                                     // Hide View button for Word documents (docx/doc)
