@@ -10,6 +10,7 @@ $PAGE->set_context(context_system::instance());
 $PAGE->set_title('Active Users Details');
 $PAGE->set_heading('Active Users Details');
 
+
 // Handle AJAX requests
 if (isset($_GET['action'])) {
     header('Content-Type: application/json');
