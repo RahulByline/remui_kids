@@ -15,6 +15,9 @@ require_once($CFG->libdir . '/adminlib.php');
 require_once($CFG->dirroot . '/course/lib.php');
 require_once($CFG->dirroot . '/mod/url/locallib.php');
 require_once($CFG->dirroot . '/theme/remui_kids/classes/local/secure_file_token.php');
+if (file_exists($CFG->dirroot . '/local/secureviewer/lib.php')) {
+    require_once($CFG->dirroot . '/local/secureviewer/lib.php');
+}
 
 if (!function_exists('theme_remui_kids_teacher_generate_file_url')) {
     /**
@@ -249,9 +252,26 @@ $params = [
 
 $teacher_courses = $DB->get_records_sql($sql, $params);
 
-// If no courses found, show error
+// If no courses found, show a friendly message (no course assigned yet)
 if (empty($teacher_courses)) {
-    print_error('You are not assigned as a teacher in any courses.');
+    $PAGE->set_context($context);
+    $PAGE->set_url('/theme/remui_kids/teacher/view_course.php');
+    $PAGE->set_pagelayout('base');
+    $PAGE->set_title('Teacher Resources');
+    $PAGE->set_heading('');
+    echo $OUTPUT->header();
+    ?>
+    <div class="teacher-no-courses-empty-state" style="min-height: 60vh; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem; box-sizing: border-box;">
+        <div class="teacher-no-courses-card" style="max-width: 440px; width: 100%; background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 12px 32px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.06); padding: 48px 40px; text-align: center;">
+            <div style="width: 80px; height: 80px; margin: 0 auto 24px; border-radius: 20px; background: linear-gradient(145deg, #f5f3ff 0%, #ede9fe 100%); display: flex; align-items: center; justify-content: center;">
+                <i class="fa fa-book-open" style="font-size: 36px; color: #7c3aed;"></i>
+            </div>
+            <h2 style="margin: 0 0 12px; font-size: 22px; font-weight: 600; color: #1e293b; letter-spacing: -0.02em;">No course assigned yet</h2>
+            <p style="margin: 0; font-size: 15px; line-height: 1.55; color: #64748b;">You’re not assigned as a teacher in any courses yet. Once an administrator assigns you to a course, your resources will appear here.</p>
+        </div>
+    </div>
+    <?php
+    exit;
 }
 
 // Page setup - use system context since we're showing resources from all courses
@@ -2546,25 +2566,23 @@ echo $OUTPUT->header();
 }
 
 .ppt-download-btn {
-    display: inline-flex;
+    background: none;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    border: none;
-    padding: 12px 28px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-    color: #ffffff;
-    font-weight: 600;
-    font-size: 14px;
+    color: #475569;
+    font-size: 18px;
     cursor: pointer;
-    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
 .ppt-download-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 10px 18px rgba(37, 99, 235, 0.35);
+    background: #e2e8f0;
+    color: #1d4ed8;
 }
 
 .ppt-download-btn:disabled {
@@ -5349,57 +5367,67 @@ echo $OUTPUT->header();
                                     }
                                 }
                                 
-                                // Add Foundation, Intermediate, and Advanced categories (for different LMS instances)
-                                // Only add if they don't already exist in the database categories
-                                // Order: Foundation first, then Intermediate, then Advanced
-                                
-                                // Grade courses for Foundation (Grade 1-5)
-                                $foundation_grades = [];
-                                for ($grade = 1; $grade <= 5; $grade++) {
-                                    $foundation_grades[] = [
-                                        'id' => -100 - $grade, // Use negative IDs starting from -101
-                                        'name' => 'Grade ' . $grade
-                                    ];
+                                // Add Foundation, Intermediate, and Advanced categories only when teacher has courses in that tier
+                                // Foundation = Grade 1-5, Intermediate = Grade 6-8, Advanced = Grade 9-12
+                                $teacher_grade_numbers = [];
+                                foreach ($teacher_courses as $tc) {
+                                    $name = ($tc->fullname ?? '') . ' ' . ($tc->shortname ?? '');
+                                    if (preg_match_all('/\bGrade\s*(\d{1,2})\b/i', $name, $m)) {
+                                        foreach ($m[1] as $g) {
+                                            $g = (int)$g;
+                                            if ($g >= 1 && $g <= 12 && !in_array($g, $teacher_grade_numbers, true)) {
+                                                $teacher_grade_numbers[] = $g;
+                                            }
+                                        }
+                                    }
                                 }
+                                $teacher_has_foundation = count(array_intersect($teacher_grade_numbers, [1, 2, 3, 4, 5])) > 0;
+                                $teacher_has_intermediate = count(array_intersect($teacher_grade_numbers, [6, 7, 8])) > 0;
+                                $teacher_has_advanced = count(array_intersect($teacher_grade_numbers, [9, 10, 11, 12])) > 0;
                                 
-                                // Grade courses for Intermediate (Grade 6-8)
-                                $intermediate_grades = [];
-                                for ($grade = 6; $grade <= 8; $grade++) {
-                                    $intermediate_grades[] = [
-                                        'id' => -100 - $grade, // Use negative IDs starting from -106
-                                        'name' => 'Grade ' . $grade
-                                    ];
-                                }
-                                
-                                // Grade courses for Advanced (Grade 9-12)
-                                $advanced_grades = [];
-                                for ($grade = 9; $grade <= 12; $grade++) {
-                                    $advanced_grades[] = [
-                                        'id' => -100 - $grade, // Use negative IDs starting from -109
-                                        'name' => 'Grade ' . $grade
-                                    ];
-                                }
-                                
-                                $additional_categories = [
-                                    [
-                                        'id' => -1, // Use negative ID to avoid conflicts
+                                $additional_categories = [];
+                                if ($teacher_has_foundation) {
+                                    $foundation_grades = [];
+                                    foreach ([1, 2, 3, 4, 5] as $grade) {
+                                        if (in_array($grade, $teacher_grade_numbers, true)) {
+                                            $foundation_grades[] = ['id' => -100 - $grade, 'name' => 'Grade ' . $grade];
+                                        }
+                                    }
+                                    $additional_categories[] = [
+                                        'id' => -1,
                                         'name' => 'Foundation',
                                         'courses' => $foundation_grades,
-                                        'sort_order' => 1 // For sorting
-                                    ],
-                                    [
+                                        'sort_order' => 1
+                                    ];
+                                }
+                                if ($teacher_has_intermediate) {
+                                    $intermediate_grades = [];
+                                    foreach ([6, 7, 8] as $grade) {
+                                        if (in_array($grade, $teacher_grade_numbers, true)) {
+                                            $intermediate_grades[] = ['id' => -100 - $grade, 'name' => 'Grade ' . $grade];
+                                        }
+                                    }
+                                    $additional_categories[] = [
                                         'id' => -2,
                                         'name' => 'Intermediate',
                                         'courses' => $intermediate_grades,
                                         'sort_order' => 2
-                                    ],
-                                    [
+                                    ];
+                                }
+                                if ($teacher_has_advanced) {
+                                    $advanced_grades = [];
+                                    foreach ([9, 10, 11, 12] as $grade) {
+                                        if (in_array($grade, $teacher_grade_numbers, true)) {
+                                            $advanced_grades[] = ['id' => -100 - $grade, 'name' => 'Grade ' . $grade];
+                                        }
+                                    }
+                                    $additional_categories[] = [
                                         'id' => -3,
                                         'name' => 'Advanced',
                                         'courses' => $advanced_grades,
                                         'sort_order' => 3
-                                    ]
-                                ];
+                                    ];
+                                }
                                 
                                 // Only add additional categories if they don't already exist (case-insensitive check)
                                 foreach ($additional_categories as $additional_cat) {
@@ -5603,6 +5631,13 @@ echo $OUTPUT->header();
                                     // Add preview URL for PPT files (for viewing first slide)
                                     if ($preview_image_url && in_array(strtolower($file_extension), ['ppt', 'pptx'])) {
                                         echo 'data-preview-url="' . htmlspecialchars($preview_image_url, ENT_QUOTES) . '" ';
+                                    }
+                                    // Add Office Viewer embed URL for PPT, Excel, Word (opens in iframe when View is clicked)
+                                    if (function_exists('local_secureviewer_get_signed_url') && in_array(strtolower($file_extension), ['ppt', 'pptx', 'xls', 'xlsx', 'csv', 'doc', 'docx'])) {
+                                        $signed_url = local_secureviewer_get_signed_url($file);
+                                        if (!empty($signed_url)) {
+                                            echo 'data-office-viewer-url="' . htmlspecialchars('https://view.officeapps.live.com/op/embed.aspx?src=' . rawurlencode($signed_url), ENT_QUOTES, 'UTF-8') . '" ';
+                                        }
                                     }
                                     echo 'data-file-name="' . htmlspecialchars($filename, ENT_QUOTES) . '">';
                                     
@@ -5873,6 +5908,13 @@ echo $OUTPUT->header();
                                     if ($preview_image_url && in_array(strtolower($resourcefileext), ['ppt', 'pptx', 'docx'])) {
                                         echo 'data-preview-url="' . htmlspecialchars($preview_image_url, ENT_QUOTES) . '" ';
                                     }
+                                    // Add Office Viewer embed URL for PPT, Excel, Word (opens in iframe when View is clicked)
+                                    if (function_exists('local_secureviewer_get_signed_url') && isset($resourcefile) && $resourcefile && in_array($resourcefileext, ['ppt', 'pptx', 'xls', 'xlsx', 'csv', 'doc', 'docx'])) {
+                                        $signed_url = local_secureviewer_get_signed_url($resourcefile);
+                                        if (!empty($signed_url)) {
+                                            echo 'data-office-viewer-url="' . htmlspecialchars('https://view.officeapps.live.com/op/embed.aspx?src=' . rawurlencode($signed_url), ENT_QUOTES, 'UTF-8') . '" ';
+                                        }
+                                    }
                                     echo 'data-file-name="' . htmlspecialchars($resource_display_name, ENT_QUOTES) . '" ';
                                     echo 'data-cm-id="' . $cm->id . '" ';
                                     echo 'data-mod-name="' . htmlspecialchars($mod_name, ENT_QUOTES) . '" ';
@@ -6067,9 +6109,8 @@ echo $OUTPUT->header();
             <h3 class="ppt-player-title" id="pptPlayerTitle">Resource Viewer</h3>
             <div class="ppt-player-header-controls">
                 <div class="ppt-player-actions">
-                    <button id="pptDownloadButton" class="ppt-download-btn" type="button" onclick="downloadCurrentResource()" disabled>
+                    <button id="pptDownloadButton" class="ppt-download-btn" type="button" onclick="downloadCurrentResource()" title="Download File" disabled>
                         <i class="fa fa-download"></i>
-                        Download File
                     </button>
                     <button id="pptFullscreenButton" class="ppt-player-icon-btn" type="button" onclick="togglePPTFullscreen()" title="Toggle fullscreen" aria-pressed="false" style="display:none;">
                         <i class="fa fa-expand"></i>
@@ -7710,12 +7751,13 @@ function previewTeacherFile(cardElement) {
     const ext = (cardElement.dataset.fileExt || '').toLowerCase();
     const name = cardElement.dataset.fileName || 'Resource';
     const previewUrl = cardElement.dataset.previewUrl || ''; // Preview URL for PPT files
+    const officeViewerUrl = cardElement.dataset.officeViewerUrl || '';
     const allowDownloadAttr = cardElement.dataset.allowDownload !== 'false';
     // Hide download button for HTML files
     const isHTML = ext === 'html' || ext === 'htm';
     const allowDownload = allowDownloadAttr && !isHTML;
     const previewType = cardElement.dataset.previewType || '';
-    openPPTPlayer(url, name, ext, { allowDownload, previewType, previewUrl: previewUrl });
+    openPPTPlayer(url, name, ext, { allowDownload, previewType, previewUrl, officeViewerUrl });
 }
 
 // Open resource (inline preview when possible, otherwise fallback)
@@ -7724,6 +7766,7 @@ function openResource(cardElement, cmid, name, modname) {
     const dataUrl = dataset.fileUrl || '';
     const dataExt = (dataset.fileExt || '').toLowerCase();
     const previewUrl = dataset.previewUrl || ''; // Preview URL for PPT files
+    const officeViewerUrl = dataset.officeViewerUrl || '';
     const allowDownloadAttr = dataset.allowDownload;
     const previewType = dataset.previewType || '';
     const allowDownload = allowDownloadAttr !== 'false' && modname !== 'url';
@@ -7732,7 +7775,7 @@ function openResource(cardElement, cmid, name, modname) {
     const finalAllowDownload = allowDownload && !isHTML;
 
     if (dataUrl) {
-        openPPTPlayer(dataUrl, name, dataExt, { allowDownload: finalAllowDownload, previewType, previewUrl: previewUrl });
+        openPPTPlayer(dataUrl, name, dataExt, { allowDownload: finalAllowDownload, previewType, previewUrl, officeViewerUrl });
         return;
     }
 
@@ -7741,7 +7784,7 @@ function openResource(cardElement, cmid, name, modname) {
     if (modname === 'resource' || modname === 'folder') {
         // Hide download button for HTML files
         const isHTML = dataExt === 'html' || dataExt === 'htm';
-        openPPTPlayer(url, name, dataExt, { allowDownload: !isHTML, previewType: '', previewUrl: previewUrl });
+        openPPTPlayer(url, name, dataExt, { allowDownload: !isHTML, previewType: '', previewUrl, officeViewerUrl });
     } else if (modname === 'url') {
         window.open(url, '_blank');
     } else {
@@ -7767,10 +7810,13 @@ function openPPTPlayer(url, title, ext, options = {}) {
     const isSpreadsheet = spreadsheetExtensions.includes(extension);
     const isPPT = pptExtensions.includes(extension);
     const isDOCX = extension === 'docx'; // DOCX files - show first image preview
+    const isDOC = extension === 'doc';
     const isHTML = extension === 'html' || extension === 'htm'; // HTML files - hide download button
     const allowDownload = options.allowDownload !== false && extension !== 'link' && options.previewType !== 'url' && !isHTML;
     const isExternalLink = options.previewType === 'url' || extension === 'link';
     const previewUrl = options.previewUrl || ''; // Preview URL for PPT and DOCX files
+    const officeViewerUrl = options.officeViewerUrl || '';
+    const useOfficeViewerIframe = !!officeViewerUrl && (isPPT || isSpreadsheet || isDOCX || isDOC);
     let viewerUrl = url;
 
     teacherResourceOriginalUrl = url; // Store original URL for download
@@ -7786,19 +7832,21 @@ function openPPTPlayer(url, title, ext, options = {}) {
     }
 
     if (fullscreenButton) {
-        if (isExternalLink) {
-            fullscreenButton.style.display = 'flex';
-            fullscreenButton.disabled = false;
-        } else {
-            fullscreenButton.style.display = 'none';
-            fullscreenButton.disabled = true;
-            fullscreenButton.classList.remove('fullscreen-active');
-            fullscreenButton.setAttribute('aria-pressed', 'false');
-        }
+        fullscreenButton.style.display = 'flex';
+        fullscreenButton.disabled = false;
+        fullscreenButton.classList.remove('fullscreen-active');
+        fullscreenButton.setAttribute('aria-pressed', 'false');
     }
 
-    // Handle PPT files - show first slide preview
-    if (isPPT) {
+    // Use Office Viewer iframe for PPT, Excel, Word when signed URL is available
+    if (useOfficeViewerIframe && iframe) {
+        if (spreadsheetContainer) {
+            spreadsheetContainer.hidden = true;
+            spreadsheetContainer.innerHTML = '';
+        }
+        iframe.style.display = '';
+        iframe.src = officeViewerUrl;
+    } else if (isPPT) {
         if (iframe) {
             iframe.style.display = 'none';
             iframe.src = 'about:blank';
