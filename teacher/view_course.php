@@ -5755,12 +5755,9 @@ echo $OUTPUT->header();
                                     
                                     echo '</div>';
                                     echo '<div class="resource-card-actions">';
-                                    // Hide View button for Word documents (docx/doc)
-                                    if (!in_array(strtolower($file_extension), ['docx', 'doc'])) {
-                                        echo '<button class="resource-card-action-btn view-btn" data-file-type="' . htmlspecialchars(strtolower($file_extension), ENT_QUOTES) . '" onclick="previewTeacherFile(this.closest(\'.resource-card\'))">';
-                                        echo '<i class="fa fa-eye"></i> View';
-                                        echo '</button>';
-                                    }
+                                    echo '<button class="resource-card-action-btn view-btn" data-file-type="' . htmlspecialchars(strtolower($file_extension), ENT_QUOTES) . '" onclick="previewTeacherFile(this.closest(\'.resource-card\'))">';
+                                    echo '<i class="fa fa-eye"></i> View';
+                                    echo '</button>';
                                     // Hide Download button for HTML files
                                     if (!in_array(strtolower($file_extension), ['html', 'htm'])) {
                                         echo '<button class="resource-card-action-btn download-btn" onclick="event.stopPropagation(); downloadResourceFile(\'' . htmlspecialchars($fileurlstring, ENT_QUOTES) . '\')">';
@@ -6048,13 +6045,10 @@ echo $OUTPUT->header();
                                     }
                                     echo '</div>';
                                     echo '<div class="resource-card-actions">';
-                                    // Hide View button for Word documents (docx/doc)
                                     $view_btn_file_type = !empty($resourcefileext) ? strtolower($resourcefileext) : strtolower($mod_name);
-                                    if (!in_array($view_btn_file_type, ['docx', 'doc'])) {
-                                        echo '<button class="resource-card-action-btn view-btn" data-file-type="' . htmlspecialchars($view_btn_file_type, ENT_QUOTES) . '" onclick="event.stopPropagation(); openResource(this.closest(\'.resource-card\'), ' . $cm->id . ', \'' . addslashes($cm->name) . '\', \'' . $mod_name . '\')">';
-                                        echo '<i class="fa fa-eye"></i> View';
-                                        echo '</button>';
-                                    }
+                                    echo '<button class="resource-card-action-btn view-btn" data-file-type="' . htmlspecialchars($view_btn_file_type, ENT_QUOTES) . '" onclick="event.stopPropagation(); openResource(this.closest(\'.resource-card\'), ' . $cm->id . ', \'' . addslashes($cm->name) . '\', \'' . $mod_name . '\')">';
+                                    echo '<i class="fa fa-eye"></i> View';
+                                    echo '</button>';
                                     // Hide Download button for HTML files
                                     if ($resourcefileurl && $resourcefileext !== 'link' && !in_array(strtolower($resourcefileext), ['html', 'htm'])) {
                                         echo '<button class="resource-card-action-btn download-btn" onclick="event.stopPropagation(); downloadResourceFile(\'' . htmlspecialchars($resourcefileurl, ENT_QUOTES) . '\')">';
