@@ -50,6 +50,25 @@ if (!$dbman->table_exists($table)) {
     }
 }
 
+// Ensure school ebook categories table exists (assign Social Science KSA / GCC to schools)
+$school_cat_table = new xmldb_table('theme_remui_kids_school_ebook_categories');
+if (!$dbman->table_exists($school_cat_table)) {
+    $school_cat_table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+    $school_cat_table->add_field('school_id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+    $school_cat_table->add_field('category', XMLDB_TYPE_CHAR, '50', null, XMLDB_NOTNULL, null, null);
+    $school_cat_table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+    $school_cat_table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+    $school_cat_table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+    $school_cat_table->add_index('school_category', XMLDB_INDEX_UNIQUE, ['school_id', 'category']);
+    $dbman->create_table($school_cat_table);
+} else {
+    $field_cat = new xmldb_field('category');
+    if (!$dbman->field_exists($school_cat_table, $field_cat)) {
+        $field_cat->set_attributes(XMLDB_TYPE_CHAR, '50', null, XMLDB_NOTNULL, null, null);
+        $dbman->add_field($school_cat_table, $field_cat);
+    }
+}
+
 $PAGE->set_url('/theme/remui_kids/admin/ebook_management.php');
 $PAGE->set_title('E-Book Management');
 $PAGE->set_heading('');
@@ -281,6 +300,98 @@ echo $OUTPUT->header();
                 <div class="ebooks-page-header">
                     <div class="container">
                         <h1 class="page-title">E-books</h1>
+                    </div>
+                </div>
+
+                <!-- School Category Assignment Button -->
+                <div style="margin: 20px 0; text-align: right;">
+                    <button id="openSchoolAssignmentModal" class="btn btn-primary" style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <i class="fa fa-school"></i> Assign Social Science to Schools
+                    </button>
+                </div>
+
+                <!-- School Category Assignment Modal -->
+                <div id="schoolAssignmentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 10000; overflow-y: auto;">
+                    <div style="position: relative; max-width: 900px; margin: 50px auto; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); padding: 0; overflow: hidden;">
+                        <div style="background: #007bff; color: white; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; font-size: 20px; font-weight: 600;">Assign Social Science Curriculum to Schools</h3>
+                            <button id="closeSchoolAssignmentModal" style="background: transparent; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
+                                <i class="fa fa-times"></i>
+                            </button>
+                        </div>
+                        <div style="padding: 24px;">
+                            <p style="margin: 0 0 20px 0; color: #666; font-size: 14px; line-height: 1.6;">Select which Social Science curriculum each school can access. Teachers from each school will only see the curriculum assigned to their school.</p>
+                            <?php
+                            $schools = [];
+                            if ($DB->get_manager()->table_exists('company')) {
+                                $schools = $DB->get_records('company', null, 'name ASC', 'id, name');
+                            }
+                            $school_assignments = [];
+                            if (!empty($schools) && $DB->get_manager()->table_exists('theme_remui_kids_school_ebook_categories')) {
+                                try {
+                                    $assignments = $DB->get_records('theme_remui_kids_school_ebook_categories');
+                                    foreach ($assignments as $assignment) {
+                                        if (!isset($school_assignments[$assignment->school_id])) {
+                                            $school_assignments[$assignment->school_id] = [];
+                                        }
+                                        $category = isset($assignment->category) ? $assignment->category : (isset($assignment->ict_category) ? $assignment->ict_category : null);
+                                        if ($category) {
+                                            $school_assignments[$assignment->school_id][] = $category;
+                                        }
+                                    }
+                                } catch (Exception $e) {
+                                    $school_assignments = [];
+                                }
+                            }
+                            $social_science_categories = ['Social Science KSA', 'Social Science GCC'];
+                            ?>
+                            <div class="school-category-table" style="overflow-x: auto; max-height: 500px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                                <table style="width: 100%; border-collapse: collapse; background: white;">
+                                    <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 10;">
+                                        <tr>
+                                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #333; background: #f8f9fa;">School Name</th>
+                                            <?php foreach ($social_science_categories as $category): ?>
+                                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6; font-weight: 600; min-width: 140px; color: #333; background: #f8f9fa;"><?php echo htmlspecialchars($category); ?></th>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($schools)): ?>
+                                        <tr>
+                                            <td colspan="<?php echo count($social_science_categories) + 1; ?>" style="padding: 30px; text-align: center; color: #666;">No schools found. Please create schools first.</td>
+                                        </tr>
+                                        <?php else: ?>
+                                        <?php foreach ($schools as $school): ?>
+                                        <tr data-school-id="<?php echo $school->id; ?>" style="border-bottom: 1px solid #f1f5f9;">
+                                            <td style="padding: 12px; font-weight: 500; color: #334155;"><?php echo htmlspecialchars($school->name); ?></td>
+                                            <?php foreach ($social_science_categories as $category): ?>
+                                            <td style="padding: 12px; text-align: center;">
+                                                <label style="cursor: pointer; display: inline-block;">
+                                                    <input type="checkbox"
+                                                           class="school-category-checkbox"
+                                                           data-school-id="<?php echo $school->id; ?>"
+                                                           data-category="<?php echo htmlspecialchars($category); ?>"
+                                                           <?php echo (isset($school_assignments[$school->id]) && in_array($category, $school_assignments[$school->id])) ? 'checked' : ''; ?>
+                                                           style="width: 18px; height: 18px; cursor: pointer; accent-color: #007bff;">
+                                                </label>
+                                            </td>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 12px;">
+                                <button id="cancelSchoolAssignments" style="padding: 10px 20px; background: #e9ecef; color: #495057; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 14px;">
+                                    Cancel
+                                </button>
+                                <button id="saveSchoolCategories" class="btn btn-primary" style="padding: 10px 24px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 14px;">
+                                    <i class="fa fa-save"></i> Save Assignments
+                                </button>
+                            </div>
+                            <div id="schoolCategoryMessage" style="margin-top: 15px; display: none; padding: 12px; border-radius: 6px; font-size: 14px;"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -3419,8 +3530,104 @@ window.onclick = function(event) {
             if (overlay && overlay.style.display === 'flex') {
                 closeBookViewer();
             }
+            const schoolModal = document.getElementById('schoolAssignmentModal');
+            if (schoolModal && schoolModal.style.display === 'block') {
+                schoolModal.style.display = 'none';
+                document.body.style.overflow = '';
+            }
         }
     });
+
+    // School Category Assignment Modal
+    (function() {
+        var modal = document.getElementById('schoolAssignmentModal');
+        var openBtn = document.getElementById('openSchoolAssignmentModal');
+        var closeBtn = document.getElementById('closeSchoolAssignmentModal');
+        var cancelBtn = document.getElementById('cancelSchoolAssignments');
+        var saveBtn = document.getElementById('saveSchoolCategories');
+        var messageDiv = document.getElementById('schoolCategoryMessage');
+        function closeModal() {
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = '';
+                if (messageDiv) messageDiv.style.display = 'none';
+            }
+        }
+        if (openBtn) openBtn.addEventListener('click', function() {
+            if (modal) { modal.style.display = 'block'; document.body.style.overflow = 'hidden'; }
+        });
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+        if (modal) modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+        if (saveBtn) {
+            saveBtn.addEventListener('click', function() {
+                var checkboxes = document.querySelectorAll('.school-category-checkbox');
+                var assignments = [];
+                for (var i = 0; i < checkboxes.length; i++) {
+                    if (checkboxes[i].checked) {
+                        assignments.push({
+                            school_id: checkboxes[i].getAttribute('data-school-id'),
+                            category: checkboxes[i].getAttribute('data-category')
+                        });
+                    }
+                }
+                if (assignments.length === 0) {
+                    if (messageDiv) {
+                        messageDiv.style.display = 'block';
+                        messageDiv.style.background = '#fff3cd';
+                        messageDiv.style.color = '#856404';
+                        messageDiv.style.border = '1px solid #ffc107';
+                        messageDiv.textContent = 'Please select at least one curriculum assignment.';
+                    }
+                    return;
+                }
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+                fetch('<?php echo $CFG->wwwroot; ?>/theme/remui_kids/admin/save_school_categories.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'assignments=' + encodeURIComponent(JSON.stringify(assignments)) + '&sesskey=<?php echo sesskey(); ?>'
+                })
+                .then(function(response) {
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    var ct = response.headers.get('content-type');
+                    if (ct && ct.includes('application/json')) return response.json();
+                    return response.text().then(function(t) {
+                        try { return JSON.parse(t); } catch (e) { return { success: false, message: t || 'Invalid response' }; }
+                    });
+                })
+                .then(function(data) {
+                    if (messageDiv) {
+                        messageDiv.style.display = 'block';
+                        if (data.success) {
+                            messageDiv.style.background = '#d4edda';
+                            messageDiv.style.color = '#155724';
+                            messageDiv.style.border = '1px solid #c3e6cb';
+                        } else {
+                            messageDiv.style.background = '#f8d7da';
+                            messageDiv.style.color = '#721c24';
+                            messageDiv.style.border = '1px solid #f5c6cb';
+                        }
+                        messageDiv.textContent = data.message || (data.success ? 'Saved.' : 'Error.');
+                    }
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="fa fa-save"></i> Save Assignments';
+                    if (data.success) setTimeout(closeModal, 1500);
+                })
+                .catch(function(err) {
+                    if (messageDiv) {
+                        messageDiv.style.display = 'block';
+                        messageDiv.style.background = '#f8d7da';
+                        messageDiv.style.color = '#721c24';
+                        messageDiv.style.border = '1px solid #f5c6cb';
+                        messageDiv.textContent = 'Error: ' + (err.message || 'Could not save.');
+                    }
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="fa fa-save"></i> Save Assignments';
+                });
+            });
+        }
+    })();
 </script>
 
 <?php

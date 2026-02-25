@@ -9,6 +9,7 @@
 
 require_once(__DIR__ . '/../../../config.php');
 require_once(__DIR__ . '/../lang_init.php');
+require_once($CFG->dirroot . '/theme/remui_kids/lib/teacher_school_helper.php');
 
 global $CURRENT_LANG, $DB, $USER, $CFG;
 
@@ -79,6 +80,30 @@ if (!$dbman->table_exists($table)) {
     }
 }
 $region_column_exists = $dbman->field_exists($table, new xmldb_field('region'));
+
+// Allowed curriculum (region) codes for this teacher's school: only show GCC/KSA if assigned in admin.
+$allowed_ebook_regions = ['GCC', 'KSA']; // default: show both if no assignment table or no school
+if ($DB->get_manager()->table_exists('theme_remui_kids_school_ebook_categories')) {
+    $teacher_company_id = theme_remui_kids_get_teacher_company_id();
+    if ($teacher_company_id > 0) {
+        $assigned = $DB->get_fieldset_sql(
+            "SELECT category FROM {theme_remui_kids_school_ebook_categories} WHERE school_id = :sid",
+            ['sid' => $teacher_company_id]
+        );
+        if (!empty($assigned)) {
+            $allowed_ebook_regions = [];
+            if (in_array('Social Science GCC', $assigned)) {
+                $allowed_ebook_regions[] = 'GCC';
+            }
+            if (in_array('Social Science KSA', $assigned)) {
+                $allowed_ebook_regions[] = 'KSA';
+            }
+            if (empty($allowed_ebook_regions)) {
+                $allowed_ebook_regions = ['GCC', 'KSA'];
+            }
+        }
+    }
+}
 
 $PAGE->set_url('/theme/remui_kids/teacher/ebooks.php');
 $PAGE->set_title('E-Books');
@@ -152,6 +177,12 @@ if ($regions_param !== null) {
     }
 } elseif ($selected_region) {
     $selected_regions = [$selected_region];
+}
+// Restrict to curricula assigned to teacher's school (GCC/KSA from school_ebook_categories)
+$selected_regions = array_values(array_intersect($selected_regions, $allowed_ebook_regions));
+// If only one curriculum is assigned, default to it so books show without extra click
+if (empty($selected_regions) && count($allowed_ebook_regions) === 1) {
+    $selected_regions = $allowed_ebook_regions;
 }
 
 // Parse multiple levels and subjects if passed as arrays
@@ -342,9 +373,10 @@ echo $OUTPUT->header();
 
                 <!-- Filter Cards Section -->
                 <div class="ebooks-filter-section">
-                    <!-- CURRICULUM / REGION (GCC / KSA) - Top level hierarchy -->
+                    <!-- CURRICULUM / REGION (GCC / KSA) - Only show curricula assigned to teacher's school -->
                     <h3 class="filter-section-header">CURRICULUM</h3>
                     <div class="filter-cards-container" id="regionFilterCards">
+                        <?php if (in_array('GCC', $allowed_ebook_regions)): ?>
                         <label class="filter-card region-card gcc-card <?php echo in_array('GCC', $selected_regions) || $selected_region == 'GCC' ? 'selected' : ''; ?>" data-region="GCC">
                             <input type="checkbox" name="ebook_regions[]" value="GCC" class="filter-region-input" <?php echo in_array('GCC', $selected_regions) || $selected_region == 'GCC' ? 'checked' : ''; ?>>
                             <div class="filter-card-checkbox region-checkbox"></div>
@@ -358,6 +390,8 @@ echo $OUTPUT->header();
                                 <p class="filter-card-description">GCC Curriculum</p>
                             </div>
                         </label>
+                        <?php endif; ?>
+                        <?php if (in_array('KSA', $allowed_ebook_regions)): ?>
                         <label class="filter-card region-card ksa-card <?php echo in_array('KSA', $selected_regions) || $selected_region == 'KSA' ? 'selected' : ''; ?>" data-region="KSA">
                             <input type="checkbox" name="ebook_regions[]" value="KSA" class="filter-region-input" <?php echo in_array('KSA', $selected_regions) || $selected_region == 'KSA' ? 'checked' : ''; ?>>
                             <div class="filter-card-checkbox region-checkbox"></div>
@@ -371,6 +405,7 @@ echo $OUTPUT->header();
                                 <p class="filter-card-description">KSA Curriculum</p>
                             </div>
                         </label>
+                        <?php endif; ?>
                     </div>
 
                     <!-- SELECT LEVELS (Multiple Selection) - Shown when region is selected -->
@@ -1712,6 +1747,12 @@ body {
 
 .books-grid-section {
     margin-top: 30px;
+    overflow: visible;
+    min-height: 0;
+}
+.books-grid-section .books-grid {
+    overflow: visible;
+    min-height: 80px;
 }
 
 /* Pagination Styles */
@@ -1905,6 +1946,7 @@ body {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
     width: 100%;
+    overflow: visible;
 }
 
 .book-card {
@@ -3168,9 +3210,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const hasFilters = selectedRegions.length > 0 || selectedLevels.length > 0 || selectedSubjects.length > 0 || bookType;
         
         if (!hasFilters) {
-            // Hide books section if no filters
             const booksSection = document.querySelector('.books-grid-section');
-            if (booksSection) {
+            const booksGrid = document.getElementById('booksGrid');
+            const hasExistingCards = booksGrid && booksGrid.querySelectorAll('.book-card-new').length > 0;
+            // Only hide if we have no filters and no existing cards (avoid hiding due to transient checkbox state)
+            if (booksSection && !hasExistingCards) {
                 booksSection.style.display = 'none';
             }
             return;
@@ -3377,18 +3421,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Initialize: If filters are present in URL on page load, show books immediately
+    // Initialize: If filters are present in URL, server has already rendered the books grid - just keep it visible.
+    // Do NOT call filterBooks() on load: it would replace server-rendered cards with "Loading..." then fetch,
+    // which can make cards disappear if the fetch fails, is slow, or returns different HTML.
     const urlParams = new URLSearchParams(window.location.search);
     const hasFiltersOnLoad = urlParams.has('regions[]') || urlParams.has('region') || urlParams.has('levels[]') || urlParams.has('subjects[]') || urlParams.has('book_type') || 
                              Array.from(urlParams.keys()).some(key => key.startsWith('regions[') || key.startsWith('levels[') || key.startsWith('subjects['));
     if (hasFiltersOnLoad) {
-        // Show books section immediately on page load with filters
         const booksSection = document.querySelector('.books-grid-section');
         if (booksSection) {
             booksSection.style.display = 'block';
         }
-        // Load books based on URL parameters immediately
-        filterBooks(false);
     }
     
     // Pagination event handlers
