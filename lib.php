@@ -347,6 +347,7 @@ function theme_remui_kids_page_init($page) {
     // GLOBAL FIX: Load navbar fix CSS and JS on ALL pages
     // This ensures the navigation bar stays visible when scrolling
     $PAGE->requires->css('/theme/remui_kids/style/navbar_fix.css');
+    $PAGE->requires->css('/theme/remui_kids/style/accessibility_widget_fix.css');
     $PAGE->requires->js('/theme/remui_kids/javascript/navbar_scroll_fix.js', true);
     
     // Load Study Partner button injection script on course, section, and activity pages

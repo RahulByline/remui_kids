@@ -3001,18 +3001,161 @@ echo $OUTPUT->header();
     }
 }
 
-/* Tier Cards Styles - Plan, Teach, Assess */
-.tier-cards-container {
-    margin-bottom: 2rem;
+/* Curriculum Layer - KSA and GCC (above Plan/Teach/Assess) */
+.curriculum-cards-container {
+    margin-bottom: 1rem;
     width: 100%;
-    padding: 1.5rem 1rem 2rem 1rem;
+    padding: 1rem 1rem 1.25rem 1rem;
     position: relative;
-    min-height: 180px;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e8f4fc 50%, #f5f3ff 100%);
+    border: 1px solid #e0e7f0;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.curriculum-cards-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 1rem;
+}
+
+.curriculum-cards-grid-two {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: stretch;
+    justify-items: center;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+}
+
+.curriculum-card {
+    background: #ffffff;
+    border: 2px solid #e8e5f3;
+    border-radius: 14px;
+    position: relative;
+    padding: 1.75rem 2rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-width: 280px;
+    max-width: 380px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    overflow: visible;
+}
+
+.curriculum-card-all { border-color: #bae6fd; }
+.curriculum-card-all .curriculum-card-icon { background: #e0f2fe; color: #0284c7; }
+.curriculum-card-ksa { border-color: #86efac; }
+.curriculum-card-ksa .curriculum-card-icon { background: #dcfce7; color: #16a34a; }
+.curriculum-card-gcc { border-color: #7dd3fc; }
+.curriculum-card-gcc .curriculum-card-icon { background: #e0f2fe; color: #0ea5e9; }
+.curriculum-card-gcc:hover { border-color: #38bdf8; background: #f0f9ff; }
+
+.curriculum-card-ksa:hover { border-color: #4ade80; background: #f0fdf4; }
+.curriculum-card:hover { border-color: #c4b5fd; background: #faf5ff; }
+
+/* KSA active state - green */
+.curriculum-card-ksa.active {
+    border-color: #16a34a;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+}
+.curriculum-card-ksa.active .curriculum-card-icon { background: #bbf7d0; color: #16a34a; }
+.curriculum-card-ksa.active .curriculum-card-checkmark { opacity: 1; background: #16a34a; color: #fff; }
+
+/* GCC active state - light blue */
+.curriculum-card-gcc.active {
+    border-color: #0ea5e9;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+}
+.curriculum-card-gcc.active .curriculum-card-icon { background: #bae6fd; color: #0ea5e9; }
+.curriculum-card-gcc.active .curriculum-card-checkmark { opacity: 1; background: #0ea5e9; color: #fff; }
+
+.curriculum-card-content {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    flex: 1;
+}
+.curriculum-card-icon-section { flex-shrink: 0; display: flex; align-items: center; }
+.curriculum-card-divider {
+    width: 2px;
+    background: linear-gradient(180deg, transparent, #e2e8f0, transparent);
+    margin: 0 1.25rem;
+    flex-shrink: 0;
+}
+.curriculum-card-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+}
+.curriculum-card-body { flex: 1; min-width: 0; }
+.curriculum-card-title { margin: 0 0 0.35rem 0; font-size: 1.35rem; font-weight: 700; color: #1e293b; }
+.curriculum-card-description { margin: 0; font-size: 0.9rem; color: #64748b; line-height: 1.4; }
+.curriculum-card-checkmark {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #94a3b8;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    font-size: 0.75rem;
+}
+
+@media (max-width: 1200px) {
+    .curriculum-cards-grid { grid-template-columns: 1fr auto 1fr; }
+    .curriculum-card:nth-child(n+6) { grid-column: 1 / -1; justify-self: center; }
+}
+@media (max-width: 768px) {
+    .curriculum-cards-grid { grid-template-columns: 1fr; gap: 0.75rem; }
+    .curriculum-cards-grid-two { grid-template-columns: 1fr; }
+    .curriculum-card { max-width: 100%; min-width: 0; }
+}
+
+/* Tier Cards Styles - Plan, Teach, Assess (second level - collapsible) */
+.tier-cards-container {
+    margin-bottom: 0;
+    margin-top: 0;
+    width: 100%;
+    padding: 0 1rem;
+    position: relative;
+    min-height: 0;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
     background: linear-gradient(135deg, #faf8ff 0%, #f0f4ff 50%, #fef7f0 100%);
     border: 1px solid #e8e5f3;
     border-radius: 16px;
-    transition: all 0.4s ease;
-    overflow: hidden;
+    transition: max-height 0.45s ease, opacity 0.35s ease, margin 0.35s ease, padding 0.35s ease, min-height 0.35s ease;
+}
+
+/* When a curriculum (first level) is selected, show second level */
+.tier-cards-container.second-level-visible {
+    max-height: 1200px;
+    min-height: 180px;
+    opacity: 1;
+    margin-top: 1rem;
+    margin-bottom: 2rem;
+    padding: 1.5rem 1rem 2rem 1rem;
+    overflow: visible;
 }
 
 .tier-cards-container.expanded {
@@ -4287,6 +4430,44 @@ echo $OUTPUT->header();
                     </div>
                 </div>
                 
+                <!-- Curriculum Layer (first level) - KSA or GCC only, mutually exclusive; second level (Plan/Teach/Assess) shows when one is selected -->
+                <div class="curriculum-cards-container">
+                    <div class="curriculum-cards-grid curriculum-cards-grid-two">
+                        <!-- Curriculum: KSA (first level - only one of KSA/GCC can be selected) -->
+                        <div class="curriculum-card curriculum-card-ksa active" data-curriculum="ksa" onclick="filterByCurriculum('ksa')">
+                            <div class="curriculum-card-content">
+                                <div class="curriculum-card-icon-section">
+                                    <div class="curriculum-card-icon icon-ksa">
+                                        <i class="fa fa-flag"></i>
+                                    </div>
+                                </div>
+                                <div class="curriculum-card-divider"></div>
+                                <div class="curriculum-card-body">
+                                    <h3 class="curriculum-card-title">KSA</h3>
+                                    <p class="curriculum-card-description">KSA curriculum resources is resources which is alligned to the Kingdom of Saudi Arabia curriculum.</p>
+                                </div>
+                            </div>
+                            <div class="curriculum-card-checkmark"><i class="fa fa-check"></i></div>
+                        </div>
+                        <!-- Curriculum: GCC (first level - only one of KSA/GCC can be selected) -->
+                        <div class="curriculum-card curriculum-card-gcc" data-curriculum="gcc" onclick="filterByCurriculum('gcc')">
+                            <div class="curriculum-card-content">
+                                <div class="curriculum-card-icon-section">
+                                    <div class="curriculum-card-icon icon-gcc">
+                                        <i class="fa fa-globe"></i>
+                                    </div>
+                                </div>
+                                <div class="curriculum-card-divider"></div>
+                                <div class="curriculum-card-body">
+                                    <h3 class="curriculum-card-title">GCC</h3>
+                                    <p class="curriculum-card-description">GCC curriculum resources is resources which is alligned to the Gulf Cooperation Council curriculum.</p>
+                                </div>
+                            </div>
+                            <div class="curriculum-card-checkmark"><i class="fa fa-check"></i></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Navigation Tier Cards - All Resources, Plan, Teach, Assess -->
                 <div class="tier-cards-container">
                     <div class="tier-cards-grid">
@@ -4444,8 +4625,8 @@ echo $OUTPUT->header();
                         </div>
                         
                         
-                        <!-- Folders and Files Filter Select -->
-                        <div class="folders-filter-wrapper" id="foldersFilterSection">
+                        <!-- Folders and Files Filter Select - visible only when at least one section is selected -->
+                        <div class="folders-filter-wrapper" id="foldersFilterSection" style="display: none;">
                             <select id="foldersFilterSelect" class="filter-select-minimal" disabled onchange="filterResources()">
                                 <option value="">All Folders</option>
                                 <!-- Will be populated by JavaScript -->
@@ -5242,6 +5423,27 @@ echo $OUTPUT->header();
                                 echo 'window.courseMainSectionsData = ' . json_encode($course_main_sections_data) . ';';
                                 echo 'window.courseMainSectionFoldersData = ' . json_encode($course_main_section_folders_data) . ';';
                                 echo 'window.courseFilesData = ' . json_encode($course_files_data) . ';';
+                                // Map course name -> [course ids] so tier card selection (e.g. "Grade 1") can resolve to real course IDs
+                                $course_name_to_ids = [];
+                                foreach ($teacher_courses as $tc) {
+                                    $name = trim($tc->fullname ?? '');
+                                    if ($name !== '') {
+                                        if (!isset($course_name_to_ids[$name])) {
+                                            $course_name_to_ids[$name] = [];
+                                        }
+                                        $course_name_to_ids[$name][] = (int)$tc->id;
+                                    }
+                                    $short = trim($tc->shortname ?? '');
+                                    if ($short !== '' && $short !== $name) {
+                                        if (!isset($course_name_to_ids[$short])) {
+                                            $course_name_to_ids[$short] = [];
+                                        }
+                                        if (!in_array((int)$tc->id, $course_name_to_ids[$short], true)) {
+                                            $course_name_to_ids[$short][] = (int)$tc->id;
+                                        }
+                                    }
+                                }
+                                echo 'window.courseNameToIds = ' . json_encode($course_name_to_ids) . ';';
                                 
                                 // Initialize sections and folders filters on page load (after tab is set)
                                 echo 'setTimeout(function() {';
@@ -5344,6 +5546,11 @@ echo $OUTPUT->header();
                                 $added_category_names = [];
                                 
                                 foreach ($main_categories as $main_cat_id => $main_cat_info) {
+                                    $category_name_lower = mb_strtolower(trim($main_cat_info['name']), 'UTF-8');
+                                    // KSA and GCC are first-level filters only; do not add them to tier category cards (only Foundation, Intermediate, Advanced)
+                                    if ($category_name_lower === 'ksa' || $category_name_lower === 'gcc') {
+                                        continue;
+                                    }
                                     $courses_array = [];
                                     // Get courses for this category from category_tree
                                     if (isset($category_tree[$main_cat_id]) && !empty($category_tree[$main_cat_id])) {
@@ -5354,8 +5561,6 @@ echo $OUTPUT->header();
                                             ];
                                         }
                                     }
-                                    $category_name_lower = mb_strtolower(trim($main_cat_info['name']), 'UTF-8');
-                                    
                                     // Only add if we haven't already added a category with this name (case-insensitive)
                                     if (!in_array($category_name_lower, $added_category_names, true)) {
                                         $main_categories_array[] = [
@@ -5614,6 +5819,7 @@ echo $OUTPUT->header();
                                     $category_id = isset($resource_item['category_id']) ? $resource_item['category_id'] : 0;
                                     $direct_category_id = isset($resource_item['direct_category_id']) ? $resource_item['direct_category_id'] : 0;
                                     $course_id = isset($resource_item['course']) ? $resource_item['course']->id : 0;
+                                    $course_name = isset($resource_item['course']) ? ($resource_item['course']->fullname ?? '') : '';
                                     $section_name = isset($resource_item['section']) ? $resource_item['section'] : '';
                                     $folder_name = isset($resource_item['folder_name']) ? $resource_item['folder_name'] : '';
                                     $folder_tag = isset($resource_item['folder_tag']) ? $resource_item['folder_tag'] : '';
@@ -5623,6 +5829,7 @@ echo $OUTPUT->header();
                                     echo 'data-category-id="' . htmlspecialchars($category_id, ENT_QUOTES) . '" ';
                                     echo 'data-direct-category-id="' . htmlspecialchars($direct_category_id, ENT_QUOTES) . '" ';
                                     echo 'data-course-id="' . htmlspecialchars($course_id, ENT_QUOTES) . '" ';
+                                    echo 'data-course-name="' . htmlspecialchars($course_name, ENT_QUOTES) . '" ';
                                     echo 'data-section="' . htmlspecialchars($section_name, ENT_QUOTES) . '" ';
                                     echo 'data-folder-name="' . htmlspecialchars($folder_name, ENT_QUOTES) . '" ';
                                     echo 'data-folder-tag="' . htmlspecialchars(strtolower($folder_tag ?: ''), ENT_QUOTES) . '" ';
@@ -5885,6 +6092,7 @@ echo $OUTPUT->header();
                                     $category_id = isset($resource_item['category_id']) ? $resource_item['category_id'] : 0;
                                     $direct_category_id = isset($resource_item['direct_category_id']) ? $resource_item['direct_category_id'] : 0;
                                     $course_id = isset($resource_item['course']) ? $resource_item['course']->id : 0;
+                                    $course_name = isset($resource_item['course']) ? ($resource_item['course']->fullname ?? '') : '';
                                     $section_name = isset($resource_item['section']) ? $resource_item['section'] : '';
                                     $folder_name = isset($resource_item['folder_name']) ? $resource_item['folder_name'] : '';
                                     $folder_tag = isset($resource_item['folder_tag']) ? $resource_item['folder_tag'] : '';
@@ -5892,6 +6100,7 @@ echo $OUTPUT->header();
                                     echo 'data-resource-type="' . htmlspecialchars(strtolower($mod_name), ENT_QUOTES) . '" ';
                                     echo 'data-category="' . htmlspecialchars($category, ENT_QUOTES) . '" ';
                                     echo 'data-category-id="' . htmlspecialchars($category_id, ENT_QUOTES) . '" ';
+                                    echo 'data-course-name="' . htmlspecialchars($course_name, ENT_QUOTES) . '" ';
                                     echo 'data-direct-category-id="' . htmlspecialchars($direct_category_id, ENT_QUOTES) . '" ';
                                     echo 'data-course-id="' . htmlspecialchars($course_id, ENT_QUOTES) . '" ';
                                     echo 'data-section="' . htmlspecialchars($section_name, ENT_QUOTES) . '" ';
@@ -6261,6 +6470,47 @@ function updateSectionsAndFoldersFilters() {
         }
     });
     
+    // Include courses from tier category cards (Foundation, Grade 1, etc.) by resolving course names to IDs
+    (function collectCourseIdsFromTierCards() {
+        function nameToIds(name) {
+            if (!name) return [];
+            const n = String(name).trim();
+            if (window.courseNameToIds && window.courseNameToIds[n]) return window.courseNameToIds[n];
+            if (window.courseNameToIds) {
+                const lower = n.toLowerCase();
+                for (const key in window.courseNameToIds) {
+                    if (key.trim().toLowerCase() === lower) return window.courseNameToIds[key];
+                }
+            }
+            const fromCards = [];
+            document.querySelectorAll('.resource-card[data-course-name]').forEach(function(rc) {
+                const cardName = (rc.getAttribute('data-course-name') || '').trim().toLowerCase();
+                if (cardName && cardName === lower) {
+                    const id = parseInt(rc.getAttribute('data-course-id'), 10);
+                    if (id && fromCards.indexOf(id) === -1) fromCards.push(id);
+                }
+            });
+            return fromCards;
+        }
+        document.querySelectorAll('#categoryCardsGrid .category-card-checkbox:checked').forEach(checkbox => {
+            const card = checkbox.closest('.category-card');
+            if (!card) return;
+            const coursesJson = card.getAttribute('data-courses');
+            if (!coursesJson) return;
+            try {
+                const courses = JSON.parse(coursesJson);
+                if (Array.isArray(courses)) {
+                    courses.forEach(function(c) {
+                        const name = (c && c.name) ? String(c.name).trim() : '';
+                        nameToIds(name).forEach(function(id) {
+                            if (id && !selectedCourseIds.includes(id)) selectedCourseIds.push(id);
+                        });
+                    });
+                }
+            } catch (e) {}
+        });
+    })();
+    
     const sectionsFilterCheckboxSection = document.getElementById('sectionsFilterCheckboxSection');
     const sectionsFiltersList = document.getElementById('sectionsFilters');
     const foldersFilterSection = document.getElementById('foldersFilterSection');
@@ -6306,8 +6556,7 @@ function updateSectionsAndFoldersFilters() {
         });
     }
     
-    // Enable/disable folders filter based on subsection selection
-    // Keep it visible but disabled when no subsections are selected
+    // Show All Folders dropdown only when at least one section is selected
     if (foldersFilterSelect) {
         if (selectedSubsections.length > 0) {
             foldersFilterSelect.disabled = false;
@@ -6317,9 +6566,8 @@ function updateSectionsAndFoldersFilters() {
         } else {
             foldersFilterSelect.disabled = true;
             foldersFilterSelect.innerHTML = '<option value="">All Folders</option>';
-            // Keep it visible but disabled - don't hide it completely
             if (foldersFilterSection) {
-                foldersFilterSection.style.display = 'block';
+                foldersFilterSection.style.display = 'none';
             }
         }
     }
@@ -6631,13 +6879,12 @@ function updateSectionsAndFoldersFilters() {
             });
         }
         
-        // If no subsections selected, disable and clear the folders filter
+        // If no subsections selected, hide the All Folders dropdown
         if (selectedSubsectionsFromCheckbox.length === 0) {
             foldersFilterSelect.disabled = true;
             foldersFilterSelect.innerHTML = '<option value="">All Folders</option>';
-            // Keep it visible but disabled
             if (foldersFilterSection) {
-                foldersFilterSection.style.display = 'block';
+                foldersFilterSection.style.display = 'none';
             }
         } else {
             // Enable folders filter when subsections are selected
@@ -6795,18 +7042,25 @@ function decodeHtmlEntities(text) {
 
         // Filter by resource type (Plan, Teach, Assess) - based on section names
 let currentResourceTypeFilter = 'all';
+// Curriculum layer: ksa or gcc only (mutually exclusive; filters by main category name)
+let currentCurriculumFilter = 'ksa';
 
-// Update resource tab counts based on folder tags
+// Update resource tab counts based on folder tags (respects curriculum when set)
 function updateResourceTabCounts() {
-    // Count all resource cards (not filtered)
     const allCards = document.querySelectorAll('.resource-card');
     
-    let allCount = allCards.length;
+    let allCount = 0;
     let planCount = 0;
     let teachCount = 0;
     let assessCount = 0;
     
     allCards.forEach(card => {
+        const cardCategory = (card.getAttribute('data-category') || '').toLowerCase();
+        const matchesCurriculum = (currentCurriculumFilter === 'ksa' && cardCategory.includes('ksa')) ||
+            (currentCurriculumFilter === 'gcc' && cardCategory.includes('gcc'));
+        if (!matchesCurriculum) return;
+        
+        allCount++;
         const folderTag = (card.getAttribute('data-folder-tag') || '').toLowerCase().trim();
         if (folderTag === 'plan') {
             planCount++;
@@ -6827,6 +7081,41 @@ function updateResourceTabCounts() {
     if (tierCardCountPlan) tierCardCountPlan.textContent = planCount;
     if (tierCardCountTeach) tierCardCountTeach.textContent = teachCount;
     if (tierCardCountAssess) tierCardCountAssess.textContent = assessCount;
+}
+
+function filterByCurriculum(curriculum) {
+    currentCurriculumFilter = (curriculum || 'ksa').toLowerCase().trim();
+    if (currentCurriculumFilter !== 'ksa' && currentCurriculumFilter !== 'gcc') {
+        currentCurriculumFilter = 'ksa';
+    }
+    
+    document.querySelectorAll('.curriculum-card').forEach(card => {
+        card.classList.remove('active');
+        if ((card.getAttribute('data-curriculum') || '').toLowerCase() === currentCurriculumFilter) {
+            card.classList.add('active');
+        }
+    });
+    
+    // Collapsible: show second level (All Resources, Plan, Teach, Assess) only when first level is selected
+    const tierCardsContainer = document.querySelector('.tier-cards-container');
+    if (tierCardsContainer) {
+        tierCardsContainer.classList.add('second-level-visible');
+        tierCardsContainer.classList.add('expanded');
+        if (typeof populateTierCardCategories === 'function') {
+            populateTierCardCategories();
+            setTimeout(function() {
+                if (typeof renderSelectedCourses === 'function') renderSelectedCourses();
+            }, 100);
+        }
+    }
+    
+    if (typeof updateSectionsAndFoldersFilters === 'function') {
+        setTimeout(function() { updateSectionsAndFoldersFilters(); }, 50);
+    }
+    filterResources();
+    setTimeout(function() {
+        if (typeof updateResourceTabCounts === 'function') updateResourceTabCounts();
+    }, 200);
 }
 
 function filterByResourceType(type) {
@@ -6902,7 +7191,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     } else {
-        // If no filter param, set "All" as active and expand to show categories
+        // No filter param: KSA is default curriculum; show second level (Plan/Teach/Assess) and set All Resources active
+        if (typeof filterByCurriculum === 'function') {
+            filterByCurriculum('ksa');
+        }
         if (typeof filterByResourceType === 'function') {
             filterByResourceType('all');
         } else {
@@ -6914,10 +7206,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Initialize: Expand container and show categories on page load
+    // Initialize: Expand container and show categories on page load (when curriculum already selected)
     setTimeout(function() {
         const tierCardsContainer = document.querySelector('.tier-cards-container');
-        if (tierCardsContainer) {
+        if (tierCardsContainer && tierCardsContainer.classList.contains('second-level-visible')) {
             tierCardsContainer.classList.add('expanded');
             if (typeof populateTierCardCategories === 'function') {
                 populateTierCardCategories();
@@ -6964,6 +7256,58 @@ function filterResources() {
             }
         }
     });
+    
+    // Include courses from checked grade/course cards (Grade 1, Grade 2, etc. in the tier area)
+    (function addCheckedCourseCardsToSelected() {
+        function nameToIds(name) {
+            if (!name) return [];
+            const n = String(name).trim();
+            if (window.courseNameToIds && window.courseNameToIds[n]) return window.courseNameToIds[n];
+            if (window.courseNameToIds) {
+                const lower = n.toLowerCase();
+                for (const key in window.courseNameToIds) {
+                    if (key.trim().toLowerCase() === lower) return window.courseNameToIds[key];
+                }
+            }
+            const fromCards = [];
+            document.querySelectorAll('.resource-card[data-course-name]').forEach(function(rc) {
+                const cardName = (rc.getAttribute('data-course-name') || '').trim().toLowerCase();
+                if (cardName && cardName === n.toLowerCase()) {
+                    const id = parseInt(rc.getAttribute('data-course-id'), 10);
+                    if (id && fromCards.indexOf(id) === -1) fromCards.push(id);
+                }
+            });
+            return fromCards;
+        }
+        document.querySelectorAll('.course-card.checked').forEach(function(courseCard) {
+            const id = parseInt(courseCard.getAttribute('data-course-id'), 10);
+            if (id > 0 && selectedCourses.indexOf(id) === -1) selectedCourses.push(id);
+            let added = false;
+            const allIdsAttr = courseCard.getAttribute('data-all-course-ids');
+            if (allIdsAttr) {
+                try {
+                    const allIds = JSON.parse(allIdsAttr);
+                    if (Array.isArray(allIds)) {
+                        allIds.forEach(function(cid) {
+                            const cidNum = parseInt(cid, 10);
+                            if (cidNum > 0 && selectedCourses.indexOf(cidNum) === -1) {
+                                selectedCourses.push(cidNum);
+                                added = true;
+                            }
+                        });
+                    }
+                } catch (e) {}
+            }
+            if (!added) {
+                const courseName = (courseCard.getAttribute('data-course-name') || '').trim();
+                if (courseName) {
+                    nameToIds(courseName).forEach(function(cid) {
+                        if (cid && selectedCourses.indexOf(cid) === -1) selectedCourses.push(cid);
+                    });
+                }
+            }
+        });
+    })();
     
     // Get selected sections from checkbox filters (priority) or select dropdown (fallback)
     const selectedSections = [];
@@ -7013,6 +7357,13 @@ function filterResources() {
         let matchesSection = true;
         let matchesFolder = true;
         let matchesResourceTypeTab = true;
+        let matchesCurriculum = true;
+        
+        // Curriculum filter (KSA or GCC only - by main category name)
+        if (typeof currentCurriculumFilter !== 'undefined' && currentCurriculumFilter) {
+            matchesCurriculum = (currentCurriculumFilter === 'ksa' && cardCategory.includes('ksa')) ||
+                (currentCurriculumFilter === 'gcc' && cardCategory.includes('gcc'));
+        }
         
         // Search filter
         if (searchTerm) {
@@ -7125,7 +7476,7 @@ function filterResources() {
         }
         
         // Mark card as filtered (matches all criteria)
-        const isVisible = matchesSearch && matchesResourceType && matchesResourceTypeTab && matchesCategory && matchesSection && matchesFolder;
+        const isVisible = matchesSearch && matchesResourceType && matchesResourceTypeTab && matchesCurriculum && matchesCategory && matchesSection && matchesFolder;
         card.setAttribute('data-filtered', isVisible ? 'true' : 'false');
         
         if (isVisible) {

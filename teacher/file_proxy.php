@@ -26,7 +26,12 @@ $token = required_param('token', PARAM_ALPHANUMEXT);
 $download = optional_param('download', 0, PARAM_BOOL);
 
 if (!secure_file_token::validate($fileid, $userid, $expires, $token)) {
-    throw new moodle_exception('invalidtoken', 'error');
+    http_response_code(403);
+    header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    $token_expired_file_type = 'file';
+    include __DIR__ . '/token_expired_error.php';
+    exit;
 }
 
 $fs = get_file_storage();

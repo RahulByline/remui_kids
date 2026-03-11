@@ -34,6 +34,12 @@ class secure_file_token {
     /** @var int Default token lifetime in seconds (15 minutes). */
     public const DEFAULT_LIFETIME = 900;
 
+    /** @var int Minimum allowed token lifetime in seconds (1 second, for testing). */
+    public const MIN_LIFETIME = 1;
+
+    /** @var int Maximum allowed token lifetime in seconds (24 hours). */
+    public const MAX_LIFETIME = 86400;
+
     /**
      * Generate a signed token for the specified file and user.
      *
@@ -43,7 +49,11 @@ class secure_file_token {
      * @return array{token:string,expires:int} Token payload.
      */
     public static function generate(int $fileid, int $userid, ?int $lifetime = null): array {
-        $expires = time() + ($lifetime ?? self::DEFAULT_LIFETIME);
+        if ($lifetime === null) {
+            $lifetime = self::get_configured_lifetime();
+        }
+        $lifetime = (int) max(self::MIN_LIFETIME, min(self::MAX_LIFETIME, $lifetime));
+        $expires = time() + $lifetime;
         $payload = self::build_payload($fileid, $userid, $expires);
         $token = hash_hmac('sha256', $payload, self::get_secret());
 
@@ -100,5 +110,21 @@ class secure_file_token {
 
         $fallback = $CFG->passwordsaltmain ?? $CFG->wwwroot;
         return hash('sha256', $fallback);
+    }
+
+    /**
+     * Get token lifetime in seconds from theme config (Site admin setting).
+     *
+     * @return int Lifetime in seconds.
+     */
+    protected static function get_configured_lifetime(): int {
+        $configured = get_config('theme_remui_kids', 'file_proxy_token_lifetime');
+        if ($configured !== false && $configured !== null && $configured !== '') {
+            $seconds = (int) $configured;
+            if ($seconds >= self::MIN_LIFETIME && $seconds <= self::MAX_LIFETIME) {
+                return $seconds;
+            }
+        }
+        return self::DEFAULT_LIFETIME;
     }
 }

@@ -11,8 +11,16 @@ function populateTierCardCategories() {
     
     categoryCardsGrid.innerHTML = '';
     
-    if (window.mainCategoriesData && Array.isArray(window.mainCategoriesData) && window.mainCategoriesData.length > 0) {
-        window.mainCategoriesData.forEach(function(category) {
+    // KSA and GCC are first-level filters only; do not show them as category cards (only Foundation, Intermediate, Advanced, etc.)
+    const categoriesToShow = (window.mainCategoriesData && Array.isArray(window.mainCategoriesData))
+        ? window.mainCategoriesData.filter(function(cat) {
+            const name = (cat.name || '').toLowerCase().trim();
+            return name !== 'ksa' && name !== 'gcc';
+        })
+        : [];
+    
+    if (categoriesToShow.length > 0) {
+        categoriesToShow.forEach(function(category) {
             const categoryCard = document.createElement('div');
             categoryCard.className = 'category-card';
             categoryCard.setAttribute('data-category-id', category.id);

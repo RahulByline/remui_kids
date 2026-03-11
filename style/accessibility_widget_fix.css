@@ -1,0 +1,22 @@
+/*
+ * Accessibility widget fix - prevent .asw-container from blocking page clicks
+ * The container is full-width and blocks buttons (e.g. Save changes). We allow
+ * clicks to pass through and only the widget trigger/button remains clickable.
+ *
+ * @package   theme_remui_kids
+ * @copyright 2025 Kodeit
+ * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+/* Let clicks pass through the full-width overlay */
+.asw-container {
+    pointer-events: none !important;
+}
+
+/* Re-enable clicks only on the widget trigger/button so the accessibility icon stays usable */
+.asw-container iframe,
+.asw-container [role="button"],
+.asw-container button,
+.asw-container > div > iframe {
+    pointer-events: auto !important;
+}

@@ -537,3 +537,7 @@ $string['student_reports'] = 'Student Reports';
 $string['c_reports'] = 'C Reports';
 $string['system'] = 'System';
 $string['activity_log'] = 'Activity Log';
+$string['fileproxyheading'] = 'File preview and secure proxy';
+$string['fileproxyheading_desc'] = 'Settings for secure file preview links used when viewing PDFs and Office documents in the teacher course view. If users see "invalid token" after leaving a tab open for a long time, increase the token lifetime below.';
+$string['file_proxy_token_lifetime'] = 'Secure file token lifetime (seconds)';
+$string['file_proxy_token_lifetime_desc'] = 'How long preview links for PDFs and Office files remain valid (in seconds). Default is 900 (15 minutes). Examples: 1800 = 30 min, 3600 = 1 hour, 7200 = 2 hours. Leaving a tab open longer than this will show "invalid token" until the page is refreshed.';

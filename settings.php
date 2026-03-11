@@ -78,4 +78,18 @@ if ($ADMIN->fulltree) {
         get_string('rawscss_desc', 'theme_remui_kids'), '', PARAM_RAW);
     $setting->set_updatedcallback('theme_reset_all_caches');
     $settings->add($setting);
+
+    // File preview / secure proxy.
+    $settings->add(new admin_setting_heading(
+        'theme_remui_kids_fileproxy',
+        get_string('fileproxyheading', 'theme_remui_kids'),
+        get_string('fileproxyheading_desc', 'theme_remui_kids')
+    ));
+    $name = 'theme_remui_kids/file_proxy_token_lifetime';
+    $title = get_string('file_proxy_token_lifetime', 'theme_remui_kids');
+    $description = get_string('file_proxy_token_lifetime_desc', 'theme_remui_kids');
+    $default = 900;
+    $setting = new admin_setting_configtext($name, $title, $description, $default, PARAM_INT, 10);
+    $setting->set_updatedcallback('theme_reset_all_caches');
+    $settings->add($setting);
 }
