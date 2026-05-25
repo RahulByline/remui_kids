@@ -26,9 +26,11 @@ require_once($CFG->dirroot . '/theme/remui_kids/classes/local/secure_file_token.
 use theme_remui_kids\local\secure_file_token;
 
 // Set headers to prevent caching issues during development
+http_response_code(200);
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Pragma: no-cache");
 header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
+header("X-Remui-Kids-Docx-Preview: 1");
 
 $fileid = optional_param('fileid', 0, PARAM_INT);
 $userid = optional_param('userid', 0, PARAM_INT);
@@ -158,6 +160,7 @@ try {
     }
 
     // Send the image
+    http_response_code(200);
     header('Content-Type: ' . $image_mimetype);
     header('Content-Length: ' . strlen($image_data));
     header('Cache-Control: public, max-age=86400'); // Cache for 24 hours
@@ -173,13 +176,16 @@ try {
         ob_end_clean();
     }
 
-    // Return 404 so browser treats it as failed load (prevents error display)
-    http_response_code(404);
-    header('Content-Type: text/plain');
+    // Return a 1x1 transparent PNG instead of 404.
+    // Many DOCX files contain no embedded images; returning 404 spams the console and breaks UI fallbacks.
+    $transparent_png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+    http_response_code(200);
+    header('Content-Type: image/png');
+    header('Content-Length: ' . strlen($transparent_png));
     header('Cache-Control: no-cache, no-store, must-revalidate');
     header('Pragma: no-cache');
     header('Expires: 0');
-    echo 'Preview not available';
+    echo $transparent_png;
     exit;
 }
 

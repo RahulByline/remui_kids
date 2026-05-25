@@ -19,6 +19,25 @@ if (file_exists($CFG->dirroot . '/local/secureviewer/lib.php')) {
     require_once($CFG->dirroot . '/local/secureviewer/lib.php');
 }
 
+/**
+ * Return the URL path segment for theme teacher scripts (docx_preview.php, ppt_preview.php, etc.).
+ * When the theme lives under iomad/theme/remui_kids (e.g. main Moodle at social/, theme under social/iomad/theme/),
+ * we must use /iomad/theme/remui_kids/teacher/ so the request reaches the file and avoids 404.
+ */
+if (!function_exists('theme_remui_kids_teacher_theme_teacher_path')) {
+    function theme_remui_kids_teacher_theme_teacher_path() {
+        global $CFG;
+        $base = '/theme/remui_kids/teacher';
+        if (file_exists($CFG->dirroot . $base . '/docx_preview.php')) {
+            return $base;
+        }
+        if (file_exists($CFG->dirroot . '/iomad' . $base . '/docx_preview.php')) {
+            return '/iomad' . $base;
+        }
+        return $base;
+    }
+}
+
 if (!function_exists('theme_remui_kids_teacher_generate_file_url')) {
     /**
      * Create a short-lived, tokenised URL that can be safely embedded inside third party
@@ -30,8 +49,8 @@ if (!function_exists('theme_remui_kids_teacher_generate_file_url')) {
      */
     function theme_remui_kids_teacher_generate_file_url(\stored_file $file, int $userid): moodle_url {
         $token = \theme_remui_kids\local\secure_file_token::generate($file->get_id(), $userid);
-
-        return new moodle_url('/theme/remui_kids/teacher/file_proxy.php', [
+        $base = theme_remui_kids_teacher_theme_teacher_path();
+        return new moodle_url($base . '/file_proxy.php', [
             'fileid' => $file->get_id(),
             'userid' => $userid,
             'expires' => $token['expires'],
@@ -87,36 +106,15 @@ if (!function_exists('theme_remui_kids_teacher_generate_preview_url')) {
             return $absolute_url;
         }
         
-        // For PowerPoint files - extract embedded thumbnail (similar to PDF.js approach for PDFs)
+        // For PowerPoint files (PPT/PPTX) - use Office Online iframe for preview.
+        // Embedded thumbnails are unreliable and create noisy failures; we avoid image extraction for card thumbnails.
         if (in_array($file_extension_lower, ['ppt', 'pptx'])) {
-            // Generate preview URL that will extract embedded thumbnail from PPTX file
-            // PPTX files are ZIP archives containing docProps/thumbnail.jpeg or thumbnail.wmf
-            $token = \theme_remui_kids\local\secure_file_token::generate($file->get_id(), $userid);
-            $preview_url = new moodle_url('/theme/remui_kids/teacher/ppt_preview.php', [
-                'fileid' => $file->get_id(),
-                'userid' => $userid,
-                'expires' => $token['expires'],
-                'token' => $token['token'],
-            ]);
-            
-            $preview_url_string = $preview_url->out(false);
-            
-            // Log the URL we're trying to access
-            
-            // Return preview URL - this will extract and serve the embedded thumbnail
-            return $preview_url_string;
+            return null;
         }
         
-        // For Word documents (DOCX) - extract first image from DOCX file
+        // For Word documents (DOCX) - use Office Online iframe for preview.
         if ($file_extension_lower === 'docx') {
-            $token = \theme_remui_kids\local\secure_file_token::generate($file->get_id(), $userid);
-            $preview_url = new moodle_url('/theme/remui_kids/teacher/docx_preview.php', [
-                'fileid' => $file->get_id(),
-                'userid' => $userid,
-                'expires' => $token['expires'],
-                'token' => $token['token'],
-            ]);
-            return $preview_url->out(false);
+            return null;
         }
         
         // For old DOC and ODT files - no preview available (binary format, can't extract images)
@@ -127,7 +125,8 @@ if (!function_exists('theme_remui_kids_teacher_generate_preview_url')) {
         // For Excel documents (XLS, XLSX) - use office preview endpoint
         if (in_array($file_extension_lower, ['xls', 'xlsx', 'ods', 'csv'])) {
             $token = \theme_remui_kids\local\secure_file_token::generate($file->get_id(), $userid);
-            $preview_url = new moodle_url('/theme/remui_kids/teacher/office_preview.php', [
+            $base = theme_remui_kids_teacher_theme_teacher_path();
+            $preview_url = new moodle_url($base . '/office_preview.php', [
                 'fileid' => $file->get_id(),
                 'userid' => $userid,
                 'expires' => $token['expires'],
@@ -255,7 +254,7 @@ $teacher_courses = $DB->get_records_sql($sql, $params);
 // If no courses found, show a friendly message (no course assigned yet)
 if (empty($teacher_courses)) {
     $PAGE->set_context($context);
-    $PAGE->set_url('/theme/remui_kids/teacher/view_course.php');
+    $PAGE->set_url(theme_remui_kids_teacher_theme_teacher_path() . '/view_course.php');
     $PAGE->set_pagelayout('base');
     $PAGE->set_title('Teacher Resources');
     $PAGE->set_heading('');
@@ -276,7 +275,7 @@ if (empty($teacher_courses)) {
 
 // Page setup - use system context since we're showing resources from all courses
 $PAGE->set_context($context);
-$PAGE->set_url('/theme/remui_kids/teacher/teacher_resources.php');
+$PAGE->set_url(theme_remui_kids_teacher_theme_teacher_path() . '/teacher_resources.php');
 $PAGE->set_pagelayout('base'); // Use base layout like competencies.php
 $PAGE->set_title('Teacher Resources');
 $PAGE->set_heading(''); // Remove default heading like competencies.php
@@ -1854,6 +1853,40 @@ echo $OUTPUT->header();
     color: #cbd5e1;
 }
 
+/* Neutral loading skeleton used while Office iframe loads */
+.resource-card-loading-placeholder {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    background: linear-gradient(90deg, rgba(226,232,240,0.75) 0%, rgba(248,250,252,0.95) 50%, rgba(226,232,240,0.75) 100%);
+    background-size: 200% 100%;
+    animation: remuiPreviewShimmer 1.2s ease-in-out infinite;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.resource-card-loading-placeholder .resource-card-loading-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 9999px;
+    background: rgba(100,116,139,0.6);
+    margin: 0 4px;
+    animation: remuiPreviewPulse 0.9s ease-in-out infinite;
+}
+.resource-card-loading-placeholder .resource-card-loading-dot:nth-child(2) { animation-delay: 0.12s; }
+.resource-card-loading-placeholder .resource-card-loading-dot:nth-child(3) { animation-delay: 0.24s; }
+
+@keyframes remuiPreviewShimmer {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+@keyframes remuiPreviewPulse {
+    0%, 100% { transform: translateY(0); opacity: 0.55; }
+    50% { transform: translateY(-3px); opacity: 0.9; }
+}
+
 /* Preview Image Styles */
 .resource-card-image {
     width: 100%;
@@ -1862,13 +1895,22 @@ echo $OUTPUT->header();
     display: block;
 }
 
-.resource-card-preview-iframe {
+/* Office iframe: zoom to fit container height (no scrollbars) */
+.resource-card-image-container .resource-card-preview-iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     border: none;
     pointer-events: none;
     display: block;
     background: white;
+    transform-origin: top left;
+}
+/* Wrapper to clip scaled iframe so scrollbars never show */
+.resource-card-image-container {
+    overflow: hidden;
 }
 
 .resource-card-video-thumbnail {
@@ -1887,18 +1929,19 @@ echo $OUTPUT->header();
     object-fit: contain;
 }
 
-.resource-card-ppt-preview {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
-
+/* (Legacy) old image thumbnail styles kept for compatibility */
+.resource-card-ppt-preview,
 .resource-card-office-preview {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
+    background: transparent;
+}
+
+/* Prevent green or stray background when preview image fails (404 or invalid) */
+.resource-card-image-container {
+    background: transparent;
 }
 
 .resource-card-format-tag {
@@ -3130,12 +3173,12 @@ echo $OUTPUT->header();
     .curriculum-card { max-width: 100%; min-width: 0; }
 }
 
-/* Tier Cards Styles - Plan, Teach, Assess (second level - collapsible) */
+/* Tier Cards Styles - Plan, Teach, Assess (second level - collapsible), responsive */
 .tier-cards-container {
     margin-bottom: 0;
     margin-top: 0;
     width: 100%;
-    padding: 0 1rem;
+    padding: 0 clamp(0.5rem, 2vw, 1rem);
     position: relative;
     min-height: 0;
     max-height: 0;
@@ -3145,6 +3188,7 @@ echo $OUTPUT->header();
     border: 1px solid #e8e5f3;
     border-radius: 16px;
     transition: max-height 0.45s ease, opacity 0.35s ease, margin 0.35s ease, padding 0.35s ease, min-height 0.35s ease;
+    box-sizing: border-box;
 }
 
 /* When a curriculum (first level) is selected, show second level */
@@ -3152,9 +3196,9 @@ echo $OUTPUT->header();
     max-height: 1200px;
     min-height: 180px;
     opacity: 1;
-    margin-top: 1rem;
-    margin-bottom: 2rem;
-    padding: 1.5rem 1rem 2rem 1rem;
+    margin-top: clamp(0.5rem, 1.5vw, 1rem);
+    margin-bottom: clamp(1rem, 3vw, 2rem);
+    padding: clamp(1rem, 2.5vw, 1.5rem) clamp(0.75rem, 2vw, 1rem) clamp(1.25rem, 3vw, 2rem) clamp(0.75rem, 2vw, 1rem);
     overflow: visible;
 }
 
@@ -3979,10 +4023,11 @@ echo $OUTPUT->header();
 
 .tier-cards-grid {
     display: grid;
-    grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+    /* Auto-fit responsive layout: each card keeps a comfortable min width, then expands */
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 1rem;
-    align-items: flex-start;
-    justify-items: center;
+    align-items: stretch;
+    justify-items: stretch;
     width: 100%;
     max-width: 1800px;
     margin: 0 auto;
@@ -3993,11 +4038,12 @@ echo $OUTPUT->header();
 
 /* Flow Arrow Between Cards */
 .tier-card-arrow-between {
-    display: flex;
+    /* Arrows between cards are hidden on the new responsive layout */
+    display: none;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 100%;
+    width: 0;
+    height: 0;
     flex-shrink: 0;
     position: relative;
 }
@@ -4036,17 +4082,17 @@ echo $OUTPUT->header();
     right: -10px;
 }
 
-/* Tier Card Base Styles */
+/* Tier Card Base Styles - responsive-friendly */
 .tier-card {
     background: #ffffff;
     border: 2px solid #e8e5f3;
     border-radius: 12px;
     position: relative;
-    padding: 1.5rem;
+    padding: clamp(0.75rem, 2.5vw, 1.5rem);
     transition: all 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
     cursor: pointer;
-    min-width: 280px;
-    max-width: 320px;
+    min-width: 0;
+    max-width: 100%;
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -4213,13 +4259,14 @@ echo $OUTPUT->header();
 }
 
 
-/* Card Content Layout */
+/* Card Content Layout - responsive */
 .tier-card-content {
     display: flex;
     align-items: flex-start;
-    gap: 1.5rem;
+    gap: clamp(0.75rem, 2vw, 1.5rem);
     padding: 0;
     min-height: auto;
+    min-width: 0;
     background: transparent;
     border-radius: 0;
     position: relative;
@@ -4240,20 +4287,21 @@ echo $OUTPUT->header();
     display: none;
 }
 
-/* Icon - Square with rounded corners */
+/* Icon - Square with rounded corners, responsive */
 .tier-card-icon {
-    width: 56px;
-    height: 56px;
+    width: clamp(40px, 8vw, 56px);
+    height: clamp(40px, 8vw, 56px);
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.75rem;
+    font-size: clamp(1.1rem, 2vw, 1.75rem);
     transition: all 0.3s ease;
     border: none;
     background: #e9d5ff;
     color: #9333ea;
     box-shadow: none;
+    flex-shrink: 0;
 }
 
 .tier-card-0 .tier-card-icon {
@@ -4280,42 +4328,45 @@ echo $OUTPUT->header();
     transform: scale(1.05);
 }
 
-/* Content Section */
+/* Content Section - responsive */
 .tier-card-body {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.25rem;
     padding-top: 0;
 }
 
 .tier-card-title {
-    font-size: 1.25rem;
+    font-size: clamp(0.875rem, 1.8vw, 1.25rem);
     font-weight: 700;
     color: #1e293b;
     margin: 0;
     line-height: 1.3;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.02em;
+    word-break: break-word;
 }
 
 .tier-card-description {
     display: block;
-    font-size: 0.875rem;
+    font-size: clamp(0.75rem, 1.2vw, 0.875rem);
     color: #64748b;
-    line-height: 1.5;
+    line-height: 1.45;
     margin: 0;
+    word-break: break-word;
 }
 
 .tier-card-count-badge {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.375rem 0.75rem;
+    padding: 0.25rem 0.5rem;
     border-radius: 20px;
-    font-size: 0.875rem;
+    font-size: clamp(0.7rem, 1.1vw, 0.875rem);
     font-weight: 600;
-    margin-top: 0.5rem;
+    margin-top: 0.375rem;
     width: fit-content;
 }
 
@@ -4349,46 +4400,25 @@ echo $OUTPUT->header();
     font-weight: 600;
 }
 
-/* Responsive */
+/* Tier cards – responsive breakpoints */
 @media (max-width: 1400px) {
     .tier-cards-grid {
-        grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
-        gap: 0.75rem;
+        gap: clamp(0.75rem, 1.5vw, 1rem);
     }
     
     .tier-card {
-        min-width: 180px;
-        max-width: 220px;
-        padding: 1rem 1rem 1rem 0.75rem;
-    }
-    
-    .tier-card-icon {
-        width: 45px;
-        height: 45px;
-        font-size: 1.25rem;
+        padding: clamp(0.75rem, 1.5vw, 1rem);
     }
 }
 
-@media (max-width: 1200px) {
-    .tier-cards-grid {
-        grid-template-columns: 1fr auto 1fr auto 1fr;
-        gap: 0.75rem;
-    }
-    
-    .tier-card {
-        min-width: 200px;
-        max-width: 240px;
-    }
-}
-
-@media (max-width: 968px) {
-    .tier-cards-container {
-        padding: 1.5rem 1rem 2rem 1rem;
+@media (max-width: 768px) {
+    .tier-cards-container.second-level-visible {
+        padding: 1rem 0.75rem 1.5rem 0.75rem;
     }
     
     .tier-cards-grid {
         grid-template-columns: 1fr;
-        gap: 2rem;
+        gap: 1rem;
     }
     
     .tier-card-arrow-between {
@@ -4396,8 +4426,65 @@ echo $OUTPUT->header();
     }
     
     .tier-card {
-        min-width: 100%;
+        min-width: 0;
         max-width: 100%;
+    }
+    
+    .tier-card-content {
+        gap: 1rem;
+    }
+    
+    .tier-card-title {
+        font-size: 1rem;
+    }
+    
+    .tier-card-description {
+        font-size: 0.8125rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .tier-cards-container {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
+    .tier-cards-container.second-level-visible {
+        padding: 0.75rem 0.5rem 1rem 0.5rem;
+        margin-top: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .tier-cards-grid {
+        gap: 0.75rem;
+        padding-bottom: 0.5rem;
+    }
+    
+    .tier-card {
+        padding: 0.75rem;
+    }
+    
+    .tier-card-content {
+        gap: 0.75rem;
+    }
+    
+    .tier-card-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+    }
+    
+    .tier-card-title {
+        font-size: 0.875rem;
+    }
+    
+    .tier-card-description {
+        font-size: 0.75rem;
+    }
+    
+    .tier-card-count-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
     }
 }
 </style>
@@ -5835,16 +5922,21 @@ echo $OUTPUT->header();
                                     echo 'data-folder-tag="' . htmlspecialchars(strtolower($folder_tag ?: ''), ENT_QUOTES) . '" ';
                                     echo 'data-file-url="' . htmlspecialchars($fileurlstring, ENT_QUOTES) . '" ';
                                     echo 'data-file-ext="' . htmlspecialchars(strtolower($file_extension), ENT_QUOTES) . '" ';
+                                    // Office viewer embed URL (used for View button and iframe card preview).
+                                    // Build it directly from our tokenised file proxy URL so it works even when local_secureviewer is unavailable.
+                                    $office_embed_url = '';
                                     // Add preview URL for PPT files (for viewing first slide)
                                     if ($preview_image_url && in_array(strtolower($file_extension), ['ppt', 'pptx'])) {
                                         echo 'data-preview-url="' . htmlspecialchars($preview_image_url, ENT_QUOTES) . '" ';
                                     }
-                                    // Add Office Viewer embed URL for PPT, Excel, Word (opens in iframe when View is clicked)
-                                    if (function_exists('local_secureviewer_get_signed_url') && in_array(strtolower($file_extension), ['ppt', 'pptx', 'xls', 'xlsx', 'csv', 'doc', 'docx'])) {
-                                        $signed_url = local_secureviewer_get_signed_url($file);
-                                        if (!empty($signed_url)) {
-                                            echo 'data-office-viewer-url="' . htmlspecialchars('https://view.officeapps.live.com/op/embed.aspx?src=' . rawurlencode($signed_url), ENT_QUOTES, 'UTF-8') . '" ';
+                                    // Add Office Viewer embed URL for PPT/Word/Excel types (used for View + iframe preview).
+                                    if (in_array(strtolower($file_extension), ['ppt', 'pptx', 'xls', 'xlsx', 'csv', 'doc', 'docx', 'odt', 'ods'])) {
+                                        $office_src = $fileurlstring;
+                                        if (strpos($office_src, 'http') !== 0) {
+                                            $office_src = $CFG->wwwroot . $office_src;
                                         }
+                                        $office_embed_url = 'https://view.officeapps.live.com/op/embed.aspx?src=' . rawurlencode($office_src);
+                                        echo 'data-office-viewer-url="' . htmlspecialchars($office_embed_url, ENT_QUOTES, 'UTF-8') . '" ';
                                     }
                                     echo 'data-file-name="' . htmlspecialchars($filename, ENT_QUOTES) . '">';
                                     
@@ -5868,21 +5960,13 @@ echo $OUTPUT->header();
                                                 echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . ';">';
                                                 echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
                                                 echo '</div>';
-                                            } else if (in_array(strtolower($file_extension), ['ppt', 'pptx'])) {
-                                                // For PPT files - show first slide as cover image
-                                                if ($preview_image_url) {
-                                                    echo '<img class="resource-card-image resource-card-ppt-preview" src="' . htmlspecialchars($preview_image_url, ENT_QUOTES) . '" alt="' . htmlspecialchars($filename, ENT_QUOTES) . '" style="display: none;" />';
+                                            } else if (in_array(strtolower($file_extension), ['ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx', 'odt', 'ods', 'csv'])) {
+                                                // Office docs - iframe only, never default icon
+                                                if (!empty($office_embed_url)) {
+                                                    echo '<iframe class="resource-card-preview-iframe" src="about:blank" data-src="' . htmlspecialchars($office_embed_url, ENT_QUOTES) . '" style="display: none;" loading="lazy" referrerpolicy="no-referrer"></iframe>';
                                                 }
-                                                echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: flex;">';
-                                                echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
-                                                echo '</div>';
-                                            } else if (in_array(strtolower($file_extension), ['doc', 'docx', 'xls', 'xlsx', 'odt', 'ods'])) {
-                                                // For Office docs - show first page/sheet as cover image
-                                                if ($preview_image_url) {
-                                                    echo '<img class="resource-card-image resource-card-office-preview" src="' . htmlspecialchars($preview_image_url, ENT_QUOTES) . '" alt="' . htmlspecialchars($filename, ENT_QUOTES) . '" style="display: none;" />';
-                                                }
-                                                echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: flex;">';
-                                                echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
+                                                echo '<div class="resource-card-image-placeholder resource-card-loading-placeholder" style="display: flex;">';
+                                                echo '<span class="resource-card-loading-dot"></span><span class="resource-card-loading-dot"></span><span class="resource-card-loading-dot"></span>';
                                                 echo '</div>';
                                             } else {
                                                 // For images, use img tag - show image by default, hide placeholder
@@ -5893,10 +5977,20 @@ echo $OUTPUT->header();
                                             }
                                         }
                                     } else {
-                                        // No preview available, show placeholder
-                                        echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . ';">';
-                                        echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
-                                        echo '</div>';
+                                        // No preview: Office types get iframe + loading skeleton only (never default icon).
+                                        $is_office = in_array(strtolower($file_extension), ['ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx', 'odt', 'ods', 'csv']);
+                                        if ($is_office) {
+                                            if (!empty($office_embed_url)) {
+                                                echo '<iframe class="resource-card-preview-iframe" src="about:blank" data-src="' . htmlspecialchars($office_embed_url, ENT_QUOTES) . '" style="display: none;" loading="lazy" referrerpolicy="no-referrer"></iframe>';
+                                            }
+                                            echo '<div class="resource-card-image-placeholder resource-card-loading-placeholder" style="display: flex;">';
+                                            echo '<span class="resource-card-loading-dot"></span><span class="resource-card-loading-dot"></span><span class="resource-card-loading-dot"></span>';
+                                            echo '</div>';
+                                        } else {
+                                            echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . ';">';
+                                            echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
+                                            echo '</div>';
+                                        }
                                     }
                                     echo '</div>';
                                     
@@ -6110,16 +6204,21 @@ echo $OUTPUT->header();
                                         echo 'data-file-url="' . htmlspecialchars($resourcefileurl, ENT_QUOTES) . '" ';
                                         echo 'data-file-ext="' . htmlspecialchars($resourcefileext, ENT_QUOTES) . '" ';
                                     }
+                                    // Office viewer embed URL (used for View button and iframe card preview).
+                                    // Build it directly from our tokenised file proxy URL so it works even when local_secureviewer is unavailable.
+                                    $office_embed_url = '';
                                     // Add preview URL for PPT and DOCX files (for viewing first slide/image)
                                     if ($preview_image_url && in_array(strtolower($resourcefileext), ['ppt', 'pptx', 'docx'])) {
                                         echo 'data-preview-url="' . htmlspecialchars($preview_image_url, ENT_QUOTES) . '" ';
                                     }
-                                    // Add Office Viewer embed URL for PPT, Excel, Word (opens in iframe when View is clicked)
-                                    if (function_exists('local_secureviewer_get_signed_url') && isset($resourcefile) && $resourcefile && in_array($resourcefileext, ['ppt', 'pptx', 'xls', 'xlsx', 'csv', 'doc', 'docx'])) {
-                                        $signed_url = local_secureviewer_get_signed_url($resourcefile);
-                                        if (!empty($signed_url)) {
-                                            echo 'data-office-viewer-url="' . htmlspecialchars('https://view.officeapps.live.com/op/embed.aspx?src=' . rawurlencode($signed_url), ENT_QUOTES, 'UTF-8') . '" ';
+                                    // Add Office Viewer embed URL for PPT/Word/Excel types (used for View + iframe preview).
+                                    if ($resourcefileurl && in_array($resourcefileext, ['ppt', 'pptx', 'xls', 'xlsx', 'csv', 'doc', 'docx', 'odt', 'ods'])) {
+                                        $office_src = $resourcefileurl;
+                                        if (strpos($office_src, 'http') !== 0) {
+                                            $office_src = $CFG->wwwroot . $office_src;
                                         }
+                                        $office_embed_url = 'https://view.officeapps.live.com/op/embed.aspx?src=' . rawurlencode($office_src);
+                                        echo 'data-office-viewer-url="' . htmlspecialchars($office_embed_url, ENT_QUOTES, 'UTF-8') . '" ';
                                     }
                                     echo 'data-file-name="' . htmlspecialchars($resource_display_name, ENT_QUOTES) . '" ';
                                     echo 'data-cm-id="' . $cm->id . '" ';
@@ -6155,21 +6254,13 @@ echo $OUTPUT->header();
                                             echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . ';">';
                                             echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
                                             echo '</div>';
-                                        } else if (in_array($file_ext_lower, ['ppt', 'pptx'])) {
-                                            // For PPT files - show first slide as cover image
-                                            if ($preview_image_url) {
-                                                echo '<img class="resource-card-image resource-card-ppt-preview" src="' . htmlspecialchars($preview_image_url, ENT_QUOTES) . '" alt="' . htmlspecialchars($resource_display_name, ENT_QUOTES) . '" style="display: none;" />';
+                                        } else if (in_array($file_ext_lower, ['ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx', 'odt', 'ods', 'csv'])) {
+                                            // Office docs - iframe only, never default icon
+                                            if (!empty($office_embed_url)) {
+                                                echo '<iframe class="resource-card-preview-iframe" src="about:blank" data-src="' . htmlspecialchars($office_embed_url, ENT_QUOTES) . '" style="display: none;" loading="lazy" referrerpolicy="no-referrer"></iframe>';
                                             }
-                                            echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: flex;">';
-                                            echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
-                                            echo '</div>';
-                                        } else if (in_array($file_ext_lower, ['doc', 'docx', 'xls', 'xlsx', 'odt', 'ods'])) {
-                                            // For Office docs - show first page/sheet as cover image
-                                            if ($preview_image_url) {
-                                                echo '<img class="resource-card-image resource-card-office-preview" src="' . htmlspecialchars($preview_image_url, ENT_QUOTES) . '" alt="' . htmlspecialchars($resource_display_name, ENT_QUOTES) . '" style="display: none;" />';
-                                            }
-                                            echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: flex;">';
-                                            echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
+                                            echo '<div class="resource-card-image-placeholder resource-card-loading-placeholder" style="display: flex;">';
+                                            echo '<span class="resource-card-loading-dot"></span><span class="resource-card-loading-dot"></span><span class="resource-card-loading-dot"></span>';
                                             echo '</div>';
                                         } else if (in_array($file_ext_lower, ['png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp', 'webp'])) {
                                             // For images, use img tag - show image by default, hide placeholder
@@ -6184,10 +6275,20 @@ echo $OUTPUT->header();
                                             echo '</div>';
                                         }
                                     } else {
-                                        // No preview available, show placeholder
-                                        echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . ';">';
-                                        echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
-                                        echo '</div>';
+                                        // No preview: Office types get iframe + loading skeleton only (never default icon).
+                                        $is_office = in_array(strtolower($file_extension), ['ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx', 'odt', 'ods', 'csv']);
+                                        if ($is_office) {
+                                            if (!empty($office_embed_url)) {
+                                                echo '<iframe class="resource-card-preview-iframe" src="about:blank" data-src="' . htmlspecialchars($office_embed_url, ENT_QUOTES) . '" style="display: none;" loading="lazy" referrerpolicy="no-referrer"></iframe>';
+                                            }
+                                            echo '<div class="resource-card-image-placeholder resource-card-loading-placeholder" style="display: flex;">';
+                                            echo '<span class="resource-card-loading-dot"></span><span class="resource-card-loading-dot"></span><span class="resource-card-loading-dot"></span>';
+                                            echo '</div>';
+                                        } else {
+                                            echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . ';">';
+                                            echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
+                                            echo '</div>';
+                                        }
                                     }
                                     echo '</div>';
                                     
@@ -6335,10 +6436,16 @@ $officeviewer_enabled = true;
 ?>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/teacher/tier_cards_categories.js"></script>
+<script>
+if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+</script>
+<script src="<?php echo $CFG->wwwroot . theme_remui_kids_teacher_theme_teacher_path(); ?>/tier_cards_categories.js"></script>
 <script>
 const OFFICE_VIEWER_ENABLED = <?php echo $officeviewer_enabled ? 'true' : 'false'; ?>;
 const PPT_FULLSCREEN_ELEMENT_ID = 'pptPlayerContent';
+const THEME_TEACHER_PATH = <?php echo json_encode(theme_remui_kids_teacher_theme_teacher_path()); ?>;
 
 // Pagination constants
 const ITEMS_PER_PAGE = 20;
@@ -6350,6 +6457,9 @@ function checkPPTPreviewImage(img) {
     if (!img) return;
     
     try {
+        const card = img.closest('.resource-card');
+        const iframePreview = card ? card.querySelector('.resource-card-preview-iframe') : null;
+
         // Find placeholder - try next sibling first, then search in parent container
         let placeholder = img.nextElementSibling;
         if (!placeholder || !placeholder.classList.contains('resource-card-image-placeholder')) {
@@ -6362,6 +6472,22 @@ function checkPPTPreviewImage(img) {
         if (!placeholder) {
             return;
         }
+
+        const showIframePreview = () => {
+            if (!iframePreview) return false;
+            // Keep placeholder visible until iframe finishes loading (handled elsewhere)
+            iframePreview.style.display = 'block';
+            const dataSrc = iframePreview.getAttribute('data-src');
+            if (dataSrc) {
+                const currentSrc = (iframePreview.getAttribute('src') || '').trim();
+                if (!currentSrc || currentSrc === 'about:blank') {
+                    iframePreview.setAttribute('src', dataSrc);
+                }
+            }
+            img.style.display = 'none';
+            img.removeAttribute('src');
+            return true;
+        };
         
         // Validate image dimensions and check for corrupted/invalid images
         const width = img.naturalWidth || 0;
@@ -6370,11 +6496,14 @@ function checkPPTPreviewImage(img) {
         // Check if image failed to load (0x0 or invalid)
         if (width === 0 || height === 0 || isNaN(width) || isNaN(height)) {
             img.style.display = 'none';
-            placeholder.style.display = 'flex';
+            img.removeAttribute('src');
+            if (!showIframePreview()) {
+                placeholder.style.display = 'flex';
+            }
             return;
         }
         
-        // Check if image is valid (not 1x1 transparent PNG)
+        // Check if image is valid (not 1x1 transparent PNG from failed preview)
         // A real preview should be at least 50x50 pixels (lowered threshold for small slides)
         if (width >= 50 && height >= 50) {
             // Valid preview image - show it
@@ -6395,13 +6524,17 @@ function checkPPTPreviewImage(img) {
         } else {
             // Transparent placeholder (1x1 PNG) or invalid - keep placeholder visible
             img.style.display = 'none';
-            placeholder.style.display = 'flex';
+            img.removeAttribute('src');
+            if (!showIframePreview()) {
+                placeholder.style.display = 'flex';
+            }
         }
     } catch (e) {
         console.error('Error in checkPPTPreviewImage:', e);
         // On error, hide image and show placeholder
         if (img) {
             img.style.display = 'none';
+            img.removeAttribute('src');
         }
         const container = img ? img.closest('.resource-card-image-container') : null;
         if (container) {
@@ -7747,117 +7880,7 @@ function initializeCardPreview(card) {
         }
     }
     
-    // Handle PPT preview (first slide cover image)
-    try {
-        const pptImg = card.querySelector('.resource-card-ppt-preview');
-        if (pptImg && !pptImg.hasAttribute('data-ppt-initialized')) {
-            pptImg.setAttribute('data-ppt-initialized', 'true');
-            const placeholder = card.querySelector('.resource-card-image-placeholder');
-            
-            if (!placeholder) {
-                return; // No placeholder, skip
-            }
-            
-            // Check if src is valid URL
-            if (!pptImg.src || pptImg.src === '' || pptImg.src.indexOf('data:') === 0) {
-                // No valid src, keep placeholder visible
-                placeholder.style.display = 'flex';
-                return;
-            }
-            
-            // Set up load handler
-            const loadHandler = function() {
-                try {
-                    checkPPTPreviewImage(pptImg);
-                } catch (e) {
-                    pptImg.style.display = 'none';
-                    if (placeholder) {
-                        placeholder.style.display = 'flex';
-                    }
-                }
-            };
-            
-            // Set up error handler
-            const errorHandler = function() {
-                try {
-                    const imgSrc = pptImg.src || 'unknown';
-                    const fileName = card.getAttribute('data-file-name') || 'unknown';
-                    const fileId = card.getAttribute('data-file-id') || 'unknown';
-                    
-                    // Hide broken image immediately
-                    pptImg.style.display = 'none';
-                    if (placeholder) {
-                        placeholder.style.display = 'flex';
-                    }
-                    
-                    // Log error to server (non-blocking)
-                    if (typeof M !== 'undefined' && M.cfg && M.cfg.wwwroot) {
-                        fetch(M.cfg.wwwroot + '/theme/remui_kids/teacher/log_preview_error.php', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            body: 'type=ppt&src=' + encodeURIComponent(imgSrc) + 
-                                  '&filename=' + encodeURIComponent(fileName) + 
-                                  '&fileid=' + encodeURIComponent(fileId) + 
-                                  '&sesskey=' + (M.cfg.sesskey || '')
-                        }).catch(function(err) {
-                            // Silently fail - don't break rendering
-                        });
-                    }
-                } catch (e) {
-                    console.error('Error in PPT preview error handler:', e);
-                }
-            };
-            
-            // Check if image is already loaded
-            if (pptImg.complete && pptImg.naturalWidth !== 0 && pptImg.naturalHeight !== 0) {
-                // Image already loaded, check it now
-                loadHandler();
-            } else {
-                // Image not loaded yet, set up event listeners
-                pptImg.addEventListener('load', loadHandler, { once: true });
-                pptImg.addEventListener('error', errorHandler, { once: true });
-                
-                // Force load if not already loading
-                if (!pptImg.complete) {
-                    try {
-                        pptImg.load();
-                    } catch (e) {
-                        // If load() fails, trigger error handler
-                        errorHandler();
-                    }
-                }
-            }
-        }
-    } catch (e) {
-        console.error('Error initializing PPT preview:', e);
-        // Don't break rendering - just log and continue
-    }
-    
-    // Handle Office document preview (DOCX, XLSX, etc. - first page/sheet cover image)
-    const officeImg = card.querySelector('.resource-card-office-preview');
-    if (officeImg && !officeImg.hasAttribute('data-office-initialized')) {
-        officeImg.setAttribute('data-office-initialized', 'true');
-        const placeholder = card.querySelector('.resource-card-image-placeholder');
-        
-        if (placeholder) {
-            // Check if image is already loaded
-            if (officeImg.complete && officeImg.naturalWidth !== 0) {
-                // Image already loaded, check it now
-                checkPPTPreviewImage(officeImg); // Reuse the same validation function
-            } else {
-                // Image not loaded yet, wait for load event
-                officeImg.addEventListener('load', function() {
-                    checkPPTPreviewImage(officeImg); // Reuse the same validation function
-                });
-            }
-            
-            // Error handling: if image fails to load, keep placeholder visible
-            officeImg.addEventListener('error', function() {
-                officeImg.style.display = 'none';
-                placeholder.style.display = 'flex';
-            });
-        }
-    }
+    // Office card previews are iframe-only now (no PPT/DOCX thumbnail images).
 }
 
 // Update pagination controls
@@ -8685,117 +8708,7 @@ function initializeResourcePreviews() {
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
     
-    // Handle PPT preview images (first slide cover images)
-    document.querySelectorAll('.resource-card-ppt-preview').forEach(img => {
-        try {
-            const card = img.closest('.resource-card');
-            const placeholder = card ? card.querySelector('.resource-card-image-placeholder') : null;
-            
-            if (!img || !placeholder) return;
-            
-            // Skip if already initialized
-            if (img.hasAttribute('data-ppt-initialized')) return;
-            img.setAttribute('data-ppt-initialized', 'true');
-            
-            // Check if src is valid URL
-            if (!img.src || img.src === '' || img.src.indexOf('data:') === 0) {
-                // No valid src, keep placeholder visible
-                placeholder.style.display = 'flex';
-                return;
-            }
-            
-            // Set up load handler
-            const loadHandler = function() {
-                try {
-                    checkPPTPreviewImage(img);
-                } catch (e) {
-                    img.style.display = 'none';
-                    if (placeholder) {
-                        placeholder.style.display = 'flex';
-                    }
-                }
-            };
-            
-            // Set up error handler
-            const errorHandler = function() {
-                try {
-                    const imgSrc = img.src || 'unknown';
-                    const fileName = card ? (card.getAttribute('data-file-name') || 'unknown') : 'unknown';
-                    const fileId = card ? (card.getAttribute('data-file-id') || 'unknown') : 'unknown';
-                    
-                    // Hide broken image immediately
-                    img.style.display = 'none';
-                    if (placeholder) {
-                        placeholder.style.display = 'flex';
-                    }
-                    
-                    // Log error to server (non-blocking)
-                    if (typeof M !== 'undefined' && M.cfg && M.cfg.wwwroot) {
-                        fetch(M.cfg.wwwroot + '/theme/remui_kids/teacher/log_preview_error.php', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            body: 'type=ppt&src=' + encodeURIComponent(imgSrc) + 
-                                  '&filename=' + encodeURIComponent(fileName) + 
-                                  '&fileid=' + encodeURIComponent(fileId) + 
-                                  '&sesskey=' + (M.cfg.sesskey || '')
-                        }).catch(function(err) {
-                            // Silently fail - don't break rendering
-                        });
-                    }
-                } catch (e) {
-                    console.error('Error in PPT preview error handler:', e);
-                }
-            };
-            
-            // Check if image is already loaded
-            if (img.complete && img.naturalWidth !== 0 && img.naturalHeight !== 0) {
-                // Image already loaded, check it now
-                loadHandler();
-            } else {
-                // Image not loaded yet, set up event listeners
-                img.addEventListener('load', loadHandler, { once: true });
-                img.addEventListener('error', errorHandler, { once: true });
-                
-                // Force load if not already loading
-                if (!img.complete) {
-                    try {
-                        img.load();
-                    } catch (e) {
-                        // If load() fails, trigger error handler
-                        errorHandler();
-                    }
-                }
-            }
-        } catch (e) {
-            console.error('Error processing PPT preview image:', e);
-            // Continue with next image - don't break the loop
-        }
-    });
-    
-    // Handle Office document preview images (DOCX, XLSX, etc. - first page/sheet cover images)
-    document.querySelectorAll('.resource-card-office-preview').forEach(img => {
-        const card = img.closest('.resource-card');
-        const placeholder = card.querySelector('.resource-card-image-placeholder');
-        
-        if (!img || !placeholder) return;
-        
-        // Check if image is already loaded
-        if (img.complete && img.naturalWidth !== 0) {
-            // Image already loaded, check it now
-            checkPPTPreviewImage(img); // Reuse the same validation function
-        } else {
-            // Image not loaded yet, wait for load event
-            img.addEventListener('load', function() {
-                checkPPTPreviewImage(img); // Reuse the same validation function
-            });
-        }
-        
-        // Handle errors
-        img.addEventListener('error', function() {
-            img.style.display = 'none';
-            placeholder.style.display = 'flex';
-        });
-    });
+    // Office card previews are iframe-only now (no PPT/DOCX thumbnail images).
     
     // Handle PDF previews - only for visible cards that aren't already initialized
     document.querySelectorAll('.resource-card-pdf-preview').forEach(canvas => {
@@ -8868,23 +8781,44 @@ function initializeResourcePreviews() {
         }
     });
     
-    // Handle iframe previews (Office docs)
+    // Handle iframe previews (Office docs) – show iframe directly, no default icon
     document.querySelectorAll('.resource-card-preview-iframe').forEach(iframe => {
         const card = iframe.closest('.resource-card');
         const placeholder = card.querySelector('.resource-card-image-placeholder');
         
         if (!iframe || !placeholder) return;
+
+        const dataSrc = (iframe.getAttribute('data-src') || '').trim();
+        if (dataSrc) {
+            // Load Office iframe immediately so user sees iframe (loading then content), not icon
+            iframe.style.display = 'block';
+            iframe.setAttribute('src', dataSrc);
+        }
         
         iframe.addEventListener('load', function() {
-            // Show iframe, hide placeholder after a short delay to ensure it's loaded
-            setTimeout(function() {
-                iframe.style.display = 'block';
-                placeholder.style.display = 'none';
-            }, 500);
+            const currentSrc = (iframe.getAttribute('src') || '').trim();
+            if (!dataSrc || currentSrc === 'about:blank' || currentSrc !== dataSrc) return;
+            placeholder.style.display = 'none';
+            iframe.style.display = 'block';
+            // Fill container, zoom in slightly, and shift left to avoid black bar so right side is visible
+            const container = iframe.closest('.resource-card-image-container');
+            if (container) {
+                const cw = container.offsetWidth;
+                const ch = container.offsetHeight;
+                const nominalW = 1000;
+                const nominalH = Math.round(1000 * (ch / cw));
+                const fitScale = cw / nominalW;
+                const zoomIn = 1.2;
+                const scale = fitScale * zoomIn;
+                const shiftLeft = Math.min(40, cw * 0.09); // shift left so black bar is clipped
+                iframe.style.width = nominalW + 'px';
+                iframe.style.height = nominalH + 'px';
+                iframe.style.transform = 'translateX(-' + shiftLeft + 'px) scale(' + scale + ')';
+                iframe.style.transformOrigin = 'top left';
+            }
         });
         
         iframe.addEventListener('error', function() {
-            // If iframe fails to load, keep placeholder visible
             placeholder.style.display = 'flex';
             iframe.style.display = 'none';
         });
