@@ -8,12 +8,11 @@
  */
 
 require_once(__DIR__ . '/../../../config.php');
-require_once($CFG->dirroot . '/local/support/classes/video_manager.php');
 
-use local_support\video_manager;
+use theme_remui_kids\local\support_video_manager;
 
 require_login();
-require_capability('local/support:manage', context_system::instance());
+require_capability('moodle/site:config', context_system::instance());
 
 $PAGE->set_context(context_system::instance());
 $PAGE->set_url(new moodle_url('/theme/remui_kids/admin/support_videos.php'));
@@ -27,25 +26,25 @@ $videoid = optional_param('id', 0, PARAM_INT);
 
 // Handle actions
 if ($action === 'delete' && $videoid && confirm_sesskey()) {
-    if (video_manager::delete_video($videoid)) {
-        redirect($PAGE->url, get_string('videodeletesuccess', 'local_support'), null, \core\output\notification::NOTIFY_SUCCESS);
+    if (support_video_manager::delete_video($videoid)) {
+        redirect($PAGE->url, 'Video deleted successfully.', null, \core\output\notification::NOTIFY_SUCCESS);
     } else {
-        redirect($PAGE->url, get_string('videodeletefailed', 'local_support'), null, \core\output\notification::NOTIFY_ERROR);
+        redirect($PAGE->url, 'Failed to delete video.', null, \core\output\notification::NOTIFY_ERROR);
     }
 } else if ($action === 'toggle' && $videoid && confirm_sesskey()) {
-    $video = video_manager::get_video($videoid);
+    $video = support_video_manager::get_video($videoid);
     if ($video) {
         $newvisibility = $video->visible ? 0 : 1;
-        video_manager::update_visibility($videoid, $newvisibility);
-        redirect($PAGE->url, get_string('visibilityupdated', 'local_support'), null, \core\output\notification::NOTIFY_SUCCESS);
+        support_video_manager::update_visibility($videoid, $newvisibility);
+        redirect($PAGE->url, 'Visibility updated.', null, \core\output\notification::NOTIFY_SUCCESS);
     }
 }
 
 // Get all videos grouped by category
-$videosGrouped = video_manager::get_videos_by_category(null, false); // Get all videos including hidden
+$videosGrouped = support_video_manager::get_videos_by_category(null, false);
 
 // Get statistics
-$stats = video_manager::get_statistics();
+$stats = support_video_manager::get_statistics();
 
 echo $OUTPUT->header();
 ?>
@@ -347,11 +346,11 @@ echo $OUTPUT->header();
             <h2><i class="fa fa-video"></i> Support Videos Management</h2>
         </div>
         <div class="admin-actions">
-            <a href="<?php echo $CFG->wwwroot; ?>/local/support/manage.php" class="btn-primary-custom">
+            <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/admin/support_videos_manage.php" class="btn-primary-custom">
                 <i class="fa fa-plus"></i> Add New Video
             </a>
-            <a href="<?php echo $CFG->wwwroot; ?>/local/support/index.php" class="btn-primary-custom">
-                <i class="fa fa-eye"></i> View Help Center
+            <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/teacher/training_library.php" class="btn-primary-custom">
+                <i class="fa fa-eye"></i> View Training Library
             </a>
         </div>
     </div>
@@ -387,7 +386,7 @@ echo $OUTPUT->header();
                 <i class="fa fa-video" style="font-size: 64px; margin-bottom: 20px; opacity: 0.3;"></i>
                 <h3>No videos available</h3>
                 <p>Start by adding your first support video.</p>
-                <a href="<?php echo $CFG->wwwroot; ?>/local/support/manage.php" class="btn-primary-custom" style="margin-top: 15px;">
+                <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/admin/support_videos_manage.php" class="btn-primary-custom" style="margin-top: 15px;">
                     <i class="fa fa-plus"></i> Add Your First Video
                 </a>
             </div>
@@ -459,13 +458,14 @@ echo $OUTPUT->header();
                                 </td>
                                 <td>
                                     <div class="action-buttons">
-                                        <a href="<?php echo $CFG->wwwroot; ?>/local/support/player.php?id=<?php echo $video->id; ?>" 
-                                           class="action-btn btn-view" target="_blank">
+                                        <?php
+                                        $viewhref = ($video->video_url instanceof moodle_url)
+                                            ? $video->video_url->out(false)
+                                            : (string) $video->video_url;
+                                        ?>
+                                        <a href="<?php echo s($viewhref); ?>"
+                                           class="action-btn btn-view" target="_blank" rel="noopener">
                                             <i class="fa fa-play"></i> View
-                                        </a>
-                                        <a href="<?php echo $CFG->wwwroot; ?>/local/support/manage.php?action=edit&id=<?php echo $video->id; ?>" 
-                                           class="action-btn btn-edit">
-                                            <i class="fa fa-edit"></i> Edit
                                         </a>
                                         <?php 
                                         $deleteurl = new moodle_url('/theme/remui_kids/admin/support_videos.php', [

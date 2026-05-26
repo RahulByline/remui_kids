@@ -78,9 +78,14 @@
                         <i class="fa fa-life-ring"></i>
                         <span>Help & Support</span>
                     </h2>
-                    <button class="help-close-btn" id="helpCloseBtn">
-                        <i class="fa fa-times"></i>
-                    </button>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <a href="${M.cfg.wwwroot}/theme/remui_kids/teacher/help_support.php" class="help-open-page-link" title="Open full page">
+                            <i class="fa fa-external-link"></i> Full page
+                        </a>
+                        <button class="help-close-btn" id="helpCloseBtn">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="help-modal-body">
                     <div class="help-sidebar" id="helpSidebar">
@@ -180,8 +185,8 @@
             }
         });
 
-        // Navigation buttons
-        document.querySelectorAll('.help-nav-btn').forEach(btn => {
+        // Navigation buttons (modal only)
+        document.querySelectorAll('#helpModalOverlay .help-nav-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const view = this.getAttribute('data-view');
                 switchView(view);
@@ -224,8 +229,11 @@
             }
         });
 
-        // Load appropriate content
-        const content = document.getElementById('helpMainContent');
+        // Load appropriate content (modal only — never the full-page container)
+        const content = document.querySelector('#helpModalOverlay #helpMainContent');
+        if (!content) {
+            return;
+        }
         switch (view) {
             case 'new':
                 renderNewTicketForm(content);

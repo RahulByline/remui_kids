@@ -8868,7 +8868,7 @@ function loadTeacherHelpVideos() {
     videosListContainer.innerHTML = '<p style="text-align: center; padding: 20px; color: #666;"><i class="fa fa-spinner fa-spin" style="font-size: 24px;"></i><br>Loading help videos...</p>';
     
     // Fetch videos from plugin endpoint for 'teachers' category
-    fetch(M.cfg.wwwroot + '/local/support/get_videos.php?category=teachers')
+    fetch(M.cfg.wwwroot + '/theme/remui_kids/ajax/support_videos.php?category=teachers&targetrole=teacher')
         .then(response => response.json())
         .then(data => {
             console.log('Teacher Support Videos Response:', data);

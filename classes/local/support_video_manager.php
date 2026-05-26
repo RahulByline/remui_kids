@@ -53,16 +53,57 @@ class support_video_manager {
         }
 
         $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
-        $sql = "SELECT * FROM {" . self::TABLE . "} {$where} ORDER BY timecreated DESC";
+        $sql = "SELECT * FROM {" . self::TABLE . "} {$where} ORDER BY sortorder ASC, timecreated DESC";
 
         $videos = $DB->get_records_sql($sql, $params);
 
-        // Generate video URLs
         foreach ($videos as $video) {
-            $video->video_url = self::get_video_url($video);
+            self::enrich_video($video);
         }
 
         return $videos;
+    }
+
+    /**
+     * Get videos grouped by category for display pages.
+     *
+     * @param string|null $targetrole Filter by target role
+     * @param bool $visibleonly Only visible videos
+     * @param string|null $category Optional category filter
+     * @return array
+     */
+    public static function get_videos_by_category($targetrole = null, $visibleonly = true, $category = null) {
+        $videos = self::get_videos($category, $targetrole, $visibleonly);
+        $categories = self::get_categories();
+
+        $grouped = [];
+        foreach ($videos as $video) {
+            $key = $video->category ?: 'other';
+            if (!isset($grouped[$key])) {
+                $grouped[$key] = [
+                    'name' => $categories[$key] ?? ucfirst(str_replace('_', ' ', $key)),
+                    'videos' => [],
+                ];
+            }
+            $grouped[$key]['videos'][] = $video;
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * Add playback URLs and display metadata to a video record.
+     *
+     * @param \stdClass $video
+     * @return void
+     */
+    public static function enrich_video(\stdClass $video): void {
+        $video->video_url = self::get_video_url($video);
+        $video->embed_url = self::get_embed_url($video);
+        $video->has_captions = !empty($video->captionfile);
+        $caption = self::get_caption_url($video);
+        $video->caption_url = $caption instanceof \moodle_url ? $caption->out(false) : (string) $caption;
+        $video->durationformatted = self::format_duration($video->duration ?? null);
     }
 
     /**
@@ -76,7 +117,7 @@ class support_video_manager {
 
         $video = $DB->get_record(self::TABLE, ['id' => $videoid]);
         if ($video) {
-            $video->video_url = self::get_video_url($video);
+            self::enrich_video($video);
         }
 
         return $video;
@@ -273,15 +314,56 @@ class support_video_manager {
      * @return string Video URL
      */
     public static function get_video_url($video) {
-        global $CFG;
-
         if ($video->videotype === 'uploaded') {
-            // Use the video player page
-            return new \moodle_url('/theme/remui_kids/support/video_player.php', ['id' => $video->id]);
-        } else {
-            // External video - return the stored URL
-            return $video->videourl;
+            return new \moodle_url('/theme/remui_kids/support/stream.php', ['id' => $video->id]);
         }
+
+        return $video->videourl ?? '';
+    }
+
+    /**
+     * Get embed URL for external videos.
+     *
+     * @param object $video
+     * @return string
+     */
+    public static function get_embed_url($video) {
+        if ($video->videotype === 'youtube' && !empty($video->videourl)) {
+            if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/', $video->videourl, $matches)) {
+                return 'https://www.youtube.com/embed/' . $matches[1];
+            }
+        } else if ($video->videotype === 'vimeo' && !empty($video->videourl)) {
+            if (preg_match('/vimeo\.com\/(\d+)/', $video->videourl, $matches)) {
+                return 'https://player.vimeo.com/video/' . $matches[1];
+            }
+        } else if ($video->videotype === 'uploaded') {
+            $url = self::get_video_url($video);
+            return $url instanceof \moodle_url ? $url->out(false) : (string) $url;
+        }
+
+        return $video->videourl ?? '';
+    }
+
+    /**
+     * Format duration in seconds for display.
+     *
+     * @param int|null $seconds
+     * @return string
+     */
+    public static function format_duration($seconds) {
+        if ($seconds === null || $seconds <= 0) {
+            return '';
+        }
+
+        $hours = floor($seconds / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
+        $secs = $seconds % 60;
+
+        if ($hours > 0) {
+            return sprintf('%d:%02d:%02d', $hours, $minutes, $secs);
+        }
+
+        return sprintf('%d:%02d', $minutes, $secs);
     }
 
     /**
@@ -291,6 +373,8 @@ class support_video_manager {
      */
     public static function get_categories() {
         return [
+            'teachers' => 'Teacher Training',
+            'training' => 'Training Library',
             'courses' => 'Courses Management',
             'students' => 'Students Management',
             'gradebook' => 'Gradebook & Grading',
@@ -305,6 +389,31 @@ class support_video_manager {
             'support' => 'Support & Help',
             'other' => 'Other'
         ];
+    }
+
+    /**
+     * Aggregate video statistics for admin dashboards.
+     *
+     * @return \stdClass
+     */
+    public static function get_statistics() {
+        global $DB;
+
+        $stats = new \stdClass();
+        $stats->total_videos = $DB->count_records(self::TABLE, ['visible' => 1]);
+        $stats->total_views = (int) $DB->get_field_sql(
+            'SELECT COALESCE(SUM(views), 0) FROM {' . self::TABLE . '} WHERE visible = 1'
+        );
+        $stats->unique_viewers = (int) $DB->count_records_sql(
+            'SELECT COUNT(DISTINCT userid) FROM {theme_remui_kids_video_views}'
+        );
+        $stats->total_uploads = $DB->count_records(self::TABLE, ['videotype' => 'uploaded', 'visible' => 1]);
+        $stats->total_external = (int) $DB->count_records_select(
+            self::TABLE,
+            "videotype IN ('youtube', 'vimeo', 'external') AND visible = 1"
+        );
+
+        return $stats;
     }
 
     /**
@@ -331,10 +440,10 @@ class support_video_manager {
         global $CFG;
 
         if ($video->videotype === 'uploaded' && !empty($video->captionfile)) {
-            return new \moodle_url('/theme/remui_kids/support/serve_caption.php', ['id' => $video->id]);
+            return new \moodle_url('/theme/remui_kids/support/caption.php', ['id' => $video->id]);
         }
 
-        return null;
+        return '';
     }
 
     /**
@@ -367,10 +476,23 @@ class support_video_manager {
         $videos = $DB->get_records_sql($sql, $params);
 
         foreach ($videos as $video) {
-            $video->video_url = self::get_video_url($video);
+            self::enrich_video($video);
         }
 
         return $videos;
+    }
+
+    /**
+     * Resolve URL helper for templates (string or moodle_url).
+     *
+     * @param mixed $url
+     * @return string
+     */
+    public static function url_to_string($url): string {
+        if ($url instanceof \moodle_url) {
+            return $url->out(false);
+        }
+        return (string) $url;
     }
 }
 

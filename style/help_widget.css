@@ -228,6 +228,20 @@
     }
 }
 
+.help-open-page-link {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.help-open-page-link:hover {
+    color: #fff;
+    text-decoration: underline;
+    opacity: 0.95;
+}
+
 /* Modal Header */
 .help-modal-header {
     background: linear-gradient(135deg, #a8d5e2 0%, #b8d4f0 100%);
