@@ -339,36 +339,54 @@ function renderSelectedCourses() {
             courseCard.appendChild(checkbox);
             courseCard.appendChild(label);
             
-            // Add click handler for course card
+            // Add click handler for course card (single-select per grade row)
             courseCard.addEventListener('click', function(e) {
                 e.stopPropagation();
-                checkbox.checked = !checkbox.checked;
-                if (checkbox.checked) {
+                const selecting = !checkbox.checked;
+
+                if (selecting) {
+                    // Only one grade/course at a time — clear other tier course cards
+                    document.querySelectorAll('.course-card').forEach(function(otherCard) {
+                        if (otherCard === courseCard) {
+                            return;
+                        }
+                        otherCard.classList.remove('checked');
+                        const otherCheckbox = otherCard.querySelector('.course-card-checkbox, .category-card-checkbox');
+                        if (otherCheckbox) {
+                            otherCheckbox.checked = false;
+                        }
+                    });
+                    // Clear sidebar course checkboxes before syncing the selected grade
+                    document.querySelectorAll('#categoryFilters input[data-filter-type="course"]').forEach(function(sidebarCheckbox) {
+                        sidebarCheckbox.checked = false;
+                    });
+                }
+
+                checkbox.checked = selecting;
+                if (selecting) {
                     courseCard.classList.add('checked');
                 } else {
                     courseCard.classList.remove('checked');
                 }
-                
-                // Sync with sidebar course filter - check all checkboxes with the same course name
-                // This ensures that if "English" exists in multiple categories with different IDs, all are synced
+
                 const allCourseIds = courseCard.getAttribute('data-all-course-ids');
                 let idsToSync = [course.id];
                 if (allCourseIds) {
                     try {
                         idsToSync = JSON.parse(allCourseIds);
-                    } catch (e) {
+                    } catch (err) {
                         idsToSync = [course.id];
                     }
                 }
-                
-                // Sync all checkboxes with any of the course IDs that have this name
-                idsToSync.forEach(function(courseId) {
-                    document.querySelectorAll('#categoryFilters input[data-course-id="' + courseId + '"]').forEach(function(sidebarCheckbox) {
-                        sidebarCheckbox.checked = checkbox.checked;
+
+                if (selecting) {
+                    idsToSync.forEach(function(courseId) {
+                        document.querySelectorAll('#categoryFilters input[data-course-id="' + courseId + '"]').forEach(function(sidebarCheckbox) {
+                            sidebarCheckbox.checked = true;
+                        });
                     });
-                });
-                
-                // Trigger filter update
+                }
+
                 if (typeof updateSectionsAndFoldersFilters === 'function') {
                     updateSectionsAndFoldersFilters();
                 }

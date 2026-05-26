@@ -164,6 +164,14 @@ $is_ebooks = theme_remui_kids_sidebar_match($current_script, [
    || (strpos($current_url, '/theme/remui_kids/teacher/teacher_book.php') !== false)
    || (strpos($current_url, '/theme/remui_kids/teacher/practice_book.php') !== false);
 
+$is_help_support = theme_remui_kids_sidebar_match($current_script, [
+    'help_support.php',
+]) || (strpos($current_url, '/theme/remui_kids/teacher/help_support.php') !== false);
+
+$is_training_library = theme_remui_kids_sidebar_match($current_script, [
+    'training_library.php',
+]) || (strpos($current_url, '/theme/remui_kids/teacher/training_library.php') !== false);
+
 ?>
 
 <!-- Mobile Sidebar Toggle Button -->
@@ -195,6 +203,25 @@ $is_ebooks = theme_remui_kids_sidebar_match($current_script, [
                     <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/teacher/ebooks.php" class="sidebar-link">
                         <i class="fa fa-book sidebar-icon"></i>
                         <span class="sidebar-text">E-Books</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- SUPPORT Section -->
+        <div class="sidebar-section">
+            <h3 class="sidebar-category">SUPPORT</h3>
+            <ul class="sidebar-menu">
+                <li class="sidebar-item <?php echo $is_training_library ? 'active' : ''; ?>">
+                    <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/teacher/training_library.php" class="sidebar-link">
+                        <i class="fa fa-graduation-cap sidebar-icon"></i>
+                        <span class="sidebar-text">Training Library</span>
+                    </a>
+                </li>
+                <li class="sidebar-item <?php echo $is_help_support ? 'active' : ''; ?>">
+                    <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/teacher/help_support.php" class="sidebar-link">
+                        <i class="fa fa-life-ring sidebar-icon"></i>
+                        <span class="sidebar-text">Help &amp; Support</span>
                     </a>
                 </li>
             </ul>

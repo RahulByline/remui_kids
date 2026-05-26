@@ -26,42 +26,43 @@ function theme_remui_kids_check_support_videos($category, $userid = null) {
     $result = ['has_videos' => false, 'count' => 0, 'html' => ''];
     
     try {
-        // Check if help button is enabled in settings
-        $enable_helpbutton = get_config('local_support', 'enable_helpbutton');
-        if ($enable_helpbutton === false || $enable_helpbutton == 0) {
-            // Help button is disabled, return empty result
-            return $result;
-        }
-        
-        // Check if plugin exists
-        if (!file_exists($CFG->dirroot . '/local/support/classes/video_manager.php')) {
-            return $result;
-        }
-        
-        require_once($CFG->dirroot . '/local/support/classes/video_manager.php');
-        
-        // Check if table exists
-        if (!$DB->get_manager()->table_exists('local_support_videos')) {
-            return $result;
-        }
-        
-        // Determine user role
         $isadmin = is_siteadmin($userid);
         $context = context_system::instance();
         $isteacher = has_capability('moodle/course:update', $context, $userid);
-        
-        $targetrole = 'all';
+
+        $targetrole = 'student';
         if ($isadmin) {
             $targetrole = 'admin';
         } else if ($isteacher) {
             $targetrole = 'teacher';
-        } else {
-            $targetrole = 'student';
         }
-        
-        // Get videos for category
-        $videos = \local_support\video_manager::get_videos($category, $targetrole, true);
-        
+
+        // Prefer local_support plugin when installed.
+        if (file_exists($CFG->dirroot . '/local/support/classes/video_manager.php')) {
+            $enable_helpbutton = get_config('local_support', 'enable_helpbutton');
+            if ($enable_helpbutton === false || $enable_helpbutton == 0) {
+                return $result;
+            }
+
+            require_once($CFG->dirroot . '/local/support/classes/video_manager.php');
+
+            if ($DB->get_manager()->table_exists('local_support_videos')) {
+                $videos = \local_support\video_manager::get_videos($category, $targetrole, true);
+                if (!empty($videos)) {
+                    $result['has_videos'] = true;
+                    $result['count'] = count($videos);
+                }
+            }
+            return $result;
+        }
+
+        // Fallback: theme training video table.
+        require_once($CFG->dirroot . '/theme/remui_kids/classes/local/support_video_manager.php');
+        if (!$DB->get_manager()->table_exists(\theme_remui_kids\local\support_video_manager::TABLE)) {
+            return $result;
+        }
+
+        $videos = \theme_remui_kids\local\support_video_manager::get_videos($category, $targetrole, true);
         if (!empty($videos)) {
             $result['has_videos'] = true;
             $result['count'] = count($videos);

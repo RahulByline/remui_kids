@@ -144,6 +144,93 @@ if (!function_exists('theme_remui_kids_teacher_generate_preview_url')) {
     }
 }
 
+if (!function_exists('theme_remui_kids_teacher_resource_filter_type')) {
+    /**
+     * Canonical filter type for teaching resources (matches topbar type filter values).
+     * HTML uploads and video file extensions are grouped as "videos".
+     */
+    function theme_remui_kids_teacher_resource_filter_type(string $extension): string {
+        $ext = strtoupper(trim($extension));
+        $videoextensions = ['HTML', 'HTM', 'MP4', 'AVI', 'MOV', 'WMV', 'MKV', 'WEBM'];
+        $imageextensions = ['PNG', 'JPG', 'JPEG', 'GIF', 'SVG', 'BMP', 'WEBP'];
+        if (in_array($ext, $videoextensions, true)) {
+            return 'videos';
+        }
+        if (in_array($ext, $imageextensions, true)) {
+            return 'images';
+        }
+        if (in_array($ext, ['PPTX', 'PPT'], true)) {
+            return 'pptx';
+        }
+        if (in_array($ext, ['DOCX', 'DOC'], true)) {
+            return 'docx';
+        }
+        if (in_array($ext, ['XLSX', 'XLS'], true)) {
+            return 'xlsx';
+        }
+        if ($ext === 'CSV') {
+            return 'csv';
+        }
+        if ($ext === 'LINK') {
+            return 'url';
+        }
+        return strtolower($ext);
+    }
+}
+
+if (!function_exists('theme_remui_kids_teacher_resource_filter_label')) {
+    /**
+     * Human-readable label for resource type filter options.
+     */
+    function theme_remui_kids_teacher_resource_filter_label(string $type): string {
+        $key = strtolower(trim($type));
+        $labels = [
+            'videos' => 'Videos',
+            'images' => 'Images',
+            'pdf' => 'PDF',
+            'pptx' => 'PowerPoint',
+            'ppt' => 'PowerPoint',
+            'docx' => 'Word',
+            'doc' => 'Word',
+            'xlsx' => 'Excel',
+            'xls' => 'Excel',
+            'csv' => 'CSV',
+            'url' => 'URL',
+            'html' => 'Videos',
+            'htm' => 'Videos',
+        ];
+        if (isset($labels[$key])) {
+            return $labels[$key];
+        }
+        return $type;
+    }
+}
+
+if (!function_exists('theme_remui_kids_teacher_resource_filter_dot_class')) {
+    /**
+     * CSS class for colored type dot in the resource type filter dropdown.
+     */
+    function theme_remui_kids_teacher_resource_filter_dot_class(string $filtertype): string {
+        $map = [
+            'pdf' => 'type-pdf',
+            'pptx' => 'type-pptx',
+            'ppt' => 'type-pptx',
+            'xlsx' => 'type-xlsx',
+            'xls' => 'type-xlsx',
+            'csv' => 'type-csv',
+            'docx' => 'type-docx',
+            'doc' => 'type-docx',
+            'videos' => 'type-videos',
+            'html' => 'type-videos',
+            'images' => 'type-images',
+            'url' => 'type-url',
+        ];
+        $key = strtolower(trim($filtertype));
+        $slug = preg_replace('/[^a-z0-9]/', '', $key);
+        return $map[$key] ?? ('type-' . ($slug !== '' ? $slug : 'default'));
+    }
+}
+
 if (!function_exists('theme_remui_kids_teacher_generate_scorm_preview_url')) {
     /**
      * Generate a preview URL for SCORM module (first SCO view)
@@ -1044,7 +1131,44 @@ echo $OUTPUT->header();
 }
 
 .dashboard-hero-search-filters .sections-filter-wrapper,
-.dashboard-hero-search-filters .folders-filter-wrapper {
+.dashboard-hero-search-filters .folders-filter-wrapper,
+.dashboard-hero-search-filters .resource-type-filter-wrapper {
+    flex-shrink: 0;
+}
+
+.dashboard-hero-search-filters .multi-select-dropdown {
+    min-width: 180px;
+}
+
+.dashboard-hero-search-filters .multi-select-button {
+    height: 48px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #f8f9fa;
+    font-size: 15px;
+    min-width: 180px;
+}
+
+.dashboard-hero-search-filters .multi-select-button:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+}
+
+.dashboard-hero-search-filters .multi-select-button.active {
+    background: #ffffff;
+    border-color: #3b82f6;
+}
+
+.dashboard-hero-search-filters .multi-select-dropdown-menu {
+    left: 0;
+    right: auto;
+    min-width: 240px;
+}
+
+.dashboard-hero-search-filters .multi-select-option .filter-checkbox-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
     flex-shrink: 0;
 }
 
@@ -1328,6 +1452,8 @@ echo $OUTPUT->header();
 .filter-checkbox-dot.type-csv { background: #28a745; }
 .filter-checkbox-dot.type-docx { background: #007bff; }
 .filter-checkbox-dot.type-html { background: #ec4899; }
+.filter-checkbox-dot.type-videos { background: #ec4899; }
+.filter-checkbox-dot.type-ppt { background: #fd7e14; }
 .filter-checkbox-dot.type-images { background: #6f42c1; }
 .filter-checkbox-dot.type-image { background: #6f42c1; }
 .filter-checkbox-dot.type-url { background: #0ea5e9; }
@@ -4710,7 +4836,20 @@ echo $OUTPUT->header();
                                 <i class="fa fa-times"></i>
                             </button>
                         </div>
-                        
+
+                        <!-- Resource type filter (multi-select with checkboxes) -->
+                        <div class="resource-type-filter-wrapper multi-select-dropdown" id="resourceTypeFiltersSection">
+                            <button type="button" class="multi-select-button" onclick="toggleMultiSelectDropdown('resourceTypeFilters')">
+                                <i class="fa fa-file"></i>
+                                <span class="multi-select-text" id="resourceTypeFiltersText">All Types</span>
+                                <i class="fa fa-chevron-down multi-select-arrow"></i>
+                            </button>
+                            <div class="multi-select-dropdown-menu" id="resourceTypeFiltersDropdown">
+                                <ul class="multi-select-options" id="resourceTypeFiltersList">
+                                    <!-- Populated by JavaScript -->
+                                </ul>
+                            </div>
+                        </div>
                         
                         <!-- Folders and Files Filter Select - visible only when at least one section is selected -->
                         <div class="folders-filter-wrapper" id="foldersFilterSection" style="display: none;">
@@ -4748,17 +4887,6 @@ echo $OUTPUT->header();
                                 <a href="#" class="clear-filters-link" onclick="resetAllFilters(); return false;">Clear all filters</a>
                             </div>
                             
-                            <!-- Resource Type Filters (Hidden from frontend, functionality preserved) -->
-                            <div class="filter-section" style="display: none;">
-                                <h4 class="filter-section-title" onclick="toggleFilterSection(this)">
-                                    <span>Resource Type</span>
-                                    <i class="fa fa-chevron-down"></i>
-                                </h4>
-                                <ul class="filter-checkbox-list" id="resourceTypeFilters">
-                                    <!-- Will be populated by JavaScript -->
-                                </ul>
-                            </div>
-                            
                             <!-- Category Filters (Hidden from frontend, functionality preserved) -->
                             <div class="filter-section" style="display: none;">
                                 <h4 class="filter-section-title" onclick="toggleFilterSection(this)">
@@ -4770,14 +4898,14 @@ echo $OUTPUT->header();
                                 </ul>
                             </div>
                             
-                            <!-- Sections Filter (only active when courses are selected) -->
-                            <div class="filter-section" id="sectionsFilterCheckboxSection" style="display: none;">
+                            <!-- Sections Filter (all unique section names across courses, shown on load) -->
+                            <div class="filter-section" id="sectionsFilterCheckboxSection">
                                 <h4 class="filter-section-title" onclick="toggleFilterSection(this)">
                                     <span>Sections</span>
                                     <i class="fa fa-chevron-down"></i>
                                 </h4>
                                 <ul class="filter-checkbox-list" id="sectionsFilters">
-                                    <!-- Will be populated by JavaScript based on selected courses -->
+                                    <!-- Populated from all courses on page load -->
                                 </ul>
                             </div>
                         </aside>
@@ -5088,6 +5216,21 @@ echo $OUTPUT->header();
                         if ($has_images && !in_array('Images', $available_file_types)) {
                             $available_file_types[] = 'Images';
                         }
+
+                        // Group HTML and video file extensions as "Videos"
+                        $video_extensions = ['HTML', 'HTM', 'MP4', 'AVI', 'MOV', 'WMV', 'MKV', 'WEBM'];
+                        $has_videos = false;
+                        $available_file_types = array_filter($available_file_types, function($type) use ($video_extensions, &$has_videos) {
+                            if (in_array($type, $video_extensions)) {
+                                $has_videos = true;
+                                return false;
+                            }
+                            return true;
+                        });
+                        if ($has_videos && !in_array('Videos', $available_file_types)) {
+                            $available_file_types[] = 'Videos';
+                        }
+
                         // Re-sort after grouping
                         sort($available_file_types);
                         
@@ -5477,9 +5620,43 @@ echo $OUTPUT->header();
                                 sort($course_main_sections_data[$courseid]);
                             }
                         }
+
+                        // Unique section names across all courses (e.g. "Question Bank" once for all grades).
+                        $unique_section_filters = [];
+                        $register_unique_section = function($section) use (&$unique_section_filters) {
+                            if (strpos($section, ' > ') === false) {
+                                return;
+                            }
+                            $parts = explode(' > ', $section, 2);
+                            $display = isset($parts[1]) ? trim($parts[1]) : '';
+                            if ($display === '') {
+                                return;
+                            }
+                            if (!isset($unique_section_filters[$display])) {
+                                $unique_section_filters[$display] = [];
+                            }
+                            if (!in_array($section, $unique_section_filters[$display], true)) {
+                                $unique_section_filters[$display][] = $section;
+                            }
+                        };
+                        foreach ($course_sections_data as $sections) {
+                            foreach ($sections as $section) {
+                                $register_unique_section($section);
+                            }
+                        }
+                        foreach ($all_resources as $resource_item) {
+                            if (!empty($resource_item['section'])) {
+                                $register_unique_section($resource_item['section']);
+                            }
+                        }
+                        ksort($unique_section_filters);
+                        foreach ($unique_section_filters as $display => $paths) {
+                            sort($unique_section_filters[$display]);
+                        }
+                        $all_teacher_course_ids = array_values(array_map('intval', array_keys($course_sections_data)));
                            
                             // Output JavaScript to populate filter checkboxes
-                            if (!empty($available_file_types) || !empty($category_resource_count)) {
+                            if (!empty($available_file_types) || !empty($category_resource_count) || !empty($unique_section_filters)) {
                                 // Define toggleCategoryChildren function BEFORE the DOMContentLoaded so it's available for inline handlers
                                 echo '<script>';
                                 echo 'function toggleCategoryChildren(checkbox) {';
@@ -5510,6 +5687,8 @@ echo $OUTPUT->header();
                                 echo 'window.courseMainSectionsData = ' . json_encode($course_main_sections_data) . ';';
                                 echo 'window.courseMainSectionFoldersData = ' . json_encode($course_main_section_folders_data) . ';';
                                 echo 'window.courseFilesData = ' . json_encode($course_files_data) . ';';
+                                echo 'window.uniqueSectionFilters = ' . json_encode($unique_section_filters) . ';';
+                                echo 'window.allTeacherCourseIds = ' . json_encode($all_teacher_course_ids) . ';';
                                 // Map course name -> [course ids] so tier card selection (e.g. "Grade 1") can resolve to real course IDs
                                 $course_name_to_ids = [];
                                 foreach ($teacher_courses as $tc) {
@@ -5532,8 +5711,11 @@ echo $OUTPUT->header();
                                 }
                                 echo 'window.courseNameToIds = ' . json_encode($course_name_to_ids) . ';';
                                 
-                                // Initialize sections and folders filters on page load (after tab is set)
+                                // Initialize sections and folders filters on page load (all courses, no grade required)
                                 echo 'setTimeout(function() {';
+                                echo '    if (typeof populateGlobalSectionsFilter === "function") {';
+                                echo '        populateGlobalSectionsFilter();';
+                                echo '    }';
                                 echo '    if (typeof updateSectionsAndFoldersFilters === "function") {';
                                 echo '        updateSectionsAndFoldersFilters();';
                                 echo '    }';
@@ -5546,22 +5728,27 @@ echo $OUTPUT->header();
                                 echo '    }';
                                 echo '}, 800);';
                                 
-                                // Populate resource type filter checkboxes
-                                echo 'const resourceTypeFilters = document.getElementById("resourceTypeFilters");';
-                                echo 'if (resourceTypeFilters) {';
+                                // Populate resource type filter checkboxes (topbar multi-select)
+                                echo 'const resourceTypeFiltersList = document.getElementById("resourceTypeFiltersList");';
+                                echo 'if (resourceTypeFiltersList) {';
                                 foreach ($available_file_types as $file_type) {
-                                    $safe_file_type = addslashes($file_type);
-                                    $file_type_lower = strtolower($file_type);
-                                    $dot_class = 'type-' . $file_type_lower;
-                                    
-                                    // Display "Videos" instead of "HTML" for HTML file type
-                                    $display_name = ($file_type_lower === 'html') ? 'Videos' : $file_type;
-                                    $safe_display_name = addslashes($display_name);
-                                    
-                                    echo 'const li' . preg_replace('/[^A-Za-z0-9]/', '', $file_type) . ' = document.createElement("li");';
-                                    echo 'li' . preg_replace('/[^A-Za-z0-9]/', '', $file_type) . '.className = "filter-checkbox-item";';
-                                    echo 'li' . preg_replace('/[^A-Za-z0-9]/', '', $file_type) . '.innerHTML = \'<label class="filter-checkbox-label"><input type="checkbox" class="filter-checkbox" data-filter-type="resource-type" data-filter-value="' . $file_type_lower . '" onchange="filterResources()"><span class="filter-checkbox-dot ' . $dot_class . '"></span>' . $safe_display_name . '</label>\';';
-                                    echo 'resourceTypeFilters.appendChild(li' . preg_replace('/[^A-Za-z0-9]/', '', $file_type) . ');';
+                                    $filtervalue = (strtolower($file_type) === 'images')
+                                        ? 'images'
+                                        : ((strtolower($file_type) === 'videos')
+                                            ? 'videos'
+                                            : theme_remui_kids_teacher_resource_filter_type($file_type));
+                                    $displayname = theme_remui_kids_teacher_resource_filter_label(
+                                        strtolower($file_type) === 'videos' ? 'videos' : $file_type
+                                    );
+                                    $dotclass = theme_remui_kids_teacher_resource_filter_dot_class($filtervalue);
+                                    $safe_display_name = addslashes($displayname);
+                                    $safe_filter_value = addslashes($filtervalue);
+                                    $safe_dot_class = addslashes($dotclass);
+                                    $varsuffix = preg_replace('/[^A-Za-z0-9]/', '', $file_type);
+                                    echo 'const li' . $varsuffix . ' = document.createElement("li");';
+                                    echo 'li' . $varsuffix . '.className = "multi-select-option";';
+                                    echo 'li' . $varsuffix . '.innerHTML = \'<label><input type="checkbox" class="filter-checkbox" data-filter-type="resource-type" data-filter-value="' . $safe_filter_value . '" onchange="updateMultiSelectText(\\\'resourceTypeFilters\\\'); filterResources();"><span class="filter-checkbox-dot ' . $safe_dot_class . '"></span>' . $safe_display_name . '</label>\';';
+                                    echo 'resourceTypeFiltersList.appendChild(li' . $varsuffix . ');';
                                 }
                                 echo '}';
                                 
@@ -5911,7 +6098,7 @@ echo $OUTPUT->header();
                                     $folder_name = isset($resource_item['folder_name']) ? $resource_item['folder_name'] : '';
                                     $folder_tag = isset($resource_item['folder_tag']) ? $resource_item['folder_tag'] : '';
                                     echo '<div class="resource-card" ';
-                                    echo 'data-resource-type="' . htmlspecialchars(strtolower($file_extension), ENT_QUOTES) . '" ';
+                                    echo 'data-resource-type="' . htmlspecialchars(theme_remui_kids_teacher_resource_filter_type($file_extension), ENT_QUOTES) . '" ';
                                     echo 'data-category="' . htmlspecialchars($category, ENT_QUOTES) . '" ';
                                     echo 'data-category-id="' . htmlspecialchars($category_id, ENT_QUOTES) . '" ';
                                     echo 'data-direct-category-id="' . htmlspecialchars($direct_category_id, ENT_QUOTES) . '" ';
@@ -5999,7 +6186,8 @@ echo $OUTPUT->header();
                                     $file_ext_lower = strtolower($file_extension);
                                     
                                     // Determine display name and icon
-                                    if (in_array($file_extension, ['HTML', 'HTM'])) {
+                                    $video_file_extensions = ['HTML', 'HTM', 'MP4', 'AVI', 'MOV', 'WMV', 'MKV', 'WEBM'];
+                                    if (in_array($file_extension, $video_file_extensions)) {
                                         $format_tag_display = 'Videos';
                                         $format_icon = 'fa-video';
                                         $format_type = 'videos';
@@ -6191,7 +6379,8 @@ echo $OUTPUT->header();
                                     $folder_name = isset($resource_item['folder_name']) ? $resource_item['folder_name'] : '';
                                     $folder_tag = isset($resource_item['folder_tag']) ? $resource_item['folder_tag'] : '';
                                     echo '<div class="resource-card" ';
-                                    echo 'data-resource-type="' . htmlspecialchars(strtolower($mod_name), ENT_QUOTES) . '" ';
+                                    $card_resource_filter_type = theme_remui_kids_teacher_resource_filter_type($file_extension);
+                                    echo 'data-resource-type="' . htmlspecialchars($card_resource_filter_type, ENT_QUOTES) . '" ';
                                     echo 'data-category="' . htmlspecialchars($category, ENT_QUOTES) . '" ';
                                     echo 'data-category-id="' . htmlspecialchars($category_id, ENT_QUOTES) . '" ';
                                     echo 'data-course-name="' . htmlspecialchars($course_name, ENT_QUOTES) . '" ';
@@ -6298,7 +6487,8 @@ echo $OUTPUT->header();
                                         $file_ext_lower = strtolower($file_extension);
                                         
                                         // Determine display name and icon
-                                        if (in_array($file_extension, ['HTML', 'HTM'])) {
+                                        $video_file_extensions = ['HTML', 'HTM', 'MP4', 'AVI', 'MOV', 'WMV', 'MKV', 'WEBM'];
+                                        if (in_array($file_extension, $video_file_extensions)) {
                                             $format_tag_display = 'Videos';
                                             $format_icon = 'fa-video';
                                             $format_type = 'videos';
@@ -6322,7 +6512,7 @@ echo $OUTPUT->header();
                                             $format_tag_display = 'Word';
                                             $format_icon = 'fa-file-word';
                                             $format_type = 'docx';
-                                        } else if ($file_ext_lower === 'url') {
+                                        } else if ($file_ext_lower === 'url' || $file_ext_lower === 'link') {
                                             $format_tag_display = 'URL';
                                             $format_icon = 'fa-link';
                                             $format_type = 'url';
@@ -6564,121 +6754,401 @@ function toggleFilterSection(element) {
     }
 }
 
-// Populate sections and folders filters based on selected courses
-function updateSectionsAndFoldersFilters() {
-    // Get all selected course IDs from sidebar checkboxes
-    const selectedCourseIds = [];
-    document.querySelectorAll('#categoryFilters input[type="checkbox"][data-filter-type="course"]:checked').forEach(checkbox => {
-        const courseId = checkbox.getAttribute('data-course-id');
-        if (courseId) {
-            selectedCourseIds.push(parseInt(courseId));
+// --- Section filter helpers (global across all courses/grades) ---
+function getTierSelectedCourseNames() {
+    const names = [];
+    document.querySelectorAll('.course-card.checked').forEach(function(card) {
+        const name = (card.getAttribute('data-course-name') || '').trim();
+        if (name && !names.includes(name)) {
+            names.push(name);
         }
     });
-    
-    // Also check for courses selected via tier cards (course cards with .checked class)
-    document.querySelectorAll('.course-card.checked').forEach(courseCard => {
-        const courseId = courseCard.getAttribute('data-course-id');
-        if (courseId) {
-            const courseIdInt = parseInt(courseId);
-            if (!selectedCourseIds.includes(courseIdInt)) {
-                selectedCourseIds.push(courseIdInt);
-            }
+    return names;
+}
+
+function resourceCardMatchesSelectedCourses(card, selectedCourseIds, tierSelectedCourseNames) {
+    const cardCourseId = parseInt(card.getAttribute('data-course-id'), 10) || 0;
+    if (selectedCourseIds.length > 0 && selectedCourseIds.includes(cardCourseId)) {
+        return true;
+    }
+    if (tierSelectedCourseNames.length === 0) {
+        return selectedCourseIds.length === 0;
+    }
+    const cardCourseName = (card.getAttribute('data-course-name') || '').trim().toLowerCase();
+    const cardTagCourse = card.querySelector('.resource-card-tag-course');
+    const tagText = cardTagCourse ? cardTagCourse.textContent.trim().toLowerCase() : '';
+    return tierSelectedCourseNames.some(function(selectedName) {
+        const sel = selectedName.trim().toLowerCase();
+        return cardCourseName === sel || tagText === sel;
+    });
+}
+
+/**
+ * Course IDs for sidebar/section scope when drilling down.
+ * Priority: grade/course cards → Foundation/Intermediate/Advanced → sidebar courses → none (all).
+ */
+function getScopedCourseIds() {
+    const ids = [];
+
+    function pushId(courseId) {
+        const cid = parseInt(courseId, 10);
+        if (cid > 0 && !ids.includes(cid)) {
+            ids.push(cid);
         }
-        // Also check for all-course-ids attribute (for deduplicated courses)
+    }
+
+    function pushIdsFromCourseCard(courseCard) {
+        const courseName = (courseCard.getAttribute('data-course-name') || '').trim();
+        pushId(courseCard.getAttribute('data-course-id'));
+        if (courseName && window.courseNameToIds && window.courseNameToIds[courseName]) {
+            window.courseNameToIds[courseName].forEach(pushId);
+            return;
+        }
         const allCourseIdsAttr = courseCard.getAttribute('data-all-course-ids');
         if (allCourseIdsAttr) {
             try {
                 const allCourseIds = JSON.parse(allCourseIdsAttr);
                 if (Array.isArray(allCourseIds)) {
-                    allCourseIds.forEach(cid => {
-                        const cidInt = parseInt(cid);
-                        if (cidInt && !selectedCourseIds.includes(cidInt)) {
-                            selectedCourseIds.push(cidInt);
-                        }
-                    });
+                    allCourseIds.forEach(pushId);
                 }
             } catch (e) {
-                // Ignore JSON parse errors
+                // Ignore invalid JSON.
             }
+        }
+    }
+
+    function nameToIds(name) {
+        if (!name) {
+            return [];
+        }
+        const n = String(name).trim();
+        if (window.courseNameToIds && window.courseNameToIds[n]) {
+            return window.courseNameToIds[n];
+        }
+        if (window.courseNameToIds) {
+            const lower = n.toLowerCase();
+            for (const key in window.courseNameToIds) {
+                if (key.trim().toLowerCase() === lower) {
+                    return window.courseNameToIds[key];
+                }
+            }
+        }
+        return [];
+    }
+
+    // 1) Specific grade/course cards (e.g. Grade 8) — narrowest scope
+    document.querySelectorAll('.course-card.checked').forEach(pushIdsFromCourseCard);
+    if (ids.length > 0) {
+        return ids;
+    }
+
+    // 2) Foundation / Intermediate / Advanced tier category cards
+    document.querySelectorAll('#categoryCardsGrid .category-card:not(.course-card) .category-card-checkbox:checked').forEach(checkbox => {
+        const card = checkbox.closest('.category-card');
+        if (!card) {
+            return;
+        }
+        const coursesJson = card.getAttribute('data-courses');
+        if (!coursesJson) {
+            return;
+        }
+        try {
+            const courses = JSON.parse(coursesJson);
+            if (Array.isArray(courses)) {
+                courses.forEach(function(c) {
+                    const name = (c && c.name) ? String(c.name).trim() : '';
+                    if (c && c.id) {
+                        pushId(c.id);
+                    }
+                    nameToIds(name).forEach(pushId);
+                });
+            }
+        } catch (e) {
+            // Ignore invalid JSON.
         }
     });
-    
-    // Include courses from tier category cards (Foundation, Grade 1, etc.) by resolving course names to IDs
-    (function collectCourseIdsFromTierCards() {
-        function nameToIds(name) {
-            if (!name) return [];
-            const n = String(name).trim();
-            if (window.courseNameToIds && window.courseNameToIds[n]) return window.courseNameToIds[n];
-            if (window.courseNameToIds) {
-                const lower = n.toLowerCase();
-                for (const key in window.courseNameToIds) {
-                    if (key.trim().toLowerCase() === lower) return window.courseNameToIds[key];
+    if (ids.length > 0) {
+        return ids;
+    }
+
+    // 3) Sidebar course checkboxes
+    document.querySelectorAll('#categoryFilters input[type="checkbox"][data-filter-type="course"]:checked').forEach(checkbox => {
+        pushId(checkbox.getAttribute('data-course-id'));
+    });
+    if (ids.length > 0) {
+        return ids;
+    }
+
+    return [];
+}
+
+function getAllTeacherCourseIds() {
+    if (window.allTeacherCourseIds && window.allTeacherCourseIds.length) {
+        return window.allTeacherCourseIds.slice();
+    }
+    if (!window.courseSectionsData) {
+        return [];
+    }
+    return Object.keys(window.courseSectionsData)
+        .map(id => parseInt(id, 10))
+        .filter(id => !isNaN(id) && id > 0);
+}
+
+function getSectionDisplayName(section) {
+    if (!section) {
+        return '';
+    }
+    const s = decodeHtmlEntities(section).trim();
+    const idx = s.indexOf(' > ');
+    if (idx !== -1) {
+        return s.substring(idx + 3).trim();
+    }
+    return s;
+}
+
+function cardSectionMatchesFilter(cardSection, filterValue) {
+    const cardSectionDecoded = decodeHtmlEntities(cardSection || '').trim();
+    const filterDecoded = decodeHtmlEntities(filterValue || '').trim();
+    if (!filterDecoded) {
+        return true;
+    }
+    const cardLower = cardSectionDecoded.toLowerCase();
+    const filterLower = filterDecoded.toLowerCase();
+    if (filterLower.indexOf(' > ') !== -1) {
+        return cardLower === filterLower;
+    }
+    if (cardLower === filterLower) {
+        return true;
+    }
+    if (cardLower.endsWith(' > ' + filterLower)) {
+        return true;
+    }
+    return getSectionDisplayName(cardSectionDecoded).toLowerCase() === filterLower;
+}
+
+function getActiveResourceTierFilter() {
+    let activeFilter = 'all';
+    if (typeof currentResourceTypeFilter !== 'undefined' && currentResourceTypeFilter && currentResourceTypeFilter !== 'all') {
+        return String(currentResourceTypeFilter).toLowerCase().trim();
+    }
+    const activeTierCard = document.querySelector('.tier-card.active');
+    if (activeTierCard) {
+        if (activeTierCard.classList.contains('tier-card-1')) {
+            return 'plan';
+        }
+        if (activeTierCard.classList.contains('tier-card-2')) {
+            return 'teach';
+        }
+        if (activeTierCard.classList.contains('tier-card-3')) {
+            return 'assess';
+        }
+        const dataTab = activeTierCard.getAttribute('data-tab');
+        if (dataTab === 'planning' || dataTab === 'plan') {
+            return 'plan';
+        }
+        if (dataTab === 'resources' || dataTab === 'teach') {
+            return 'teach';
+        }
+        if (dataTab === 'assessments' || dataTab === 'assess') {
+            return 'assess';
+        }
+    }
+    return activeFilter;
+}
+
+function sectionDisplayMatchesTier(displayName, activeFilter) {
+    if (!activeFilter || activeFilter === 'all') {
+        return true;
+    }
+    const paths = (window.uniqueSectionFilters && window.uniqueSectionFilters[displayName]) || [];
+    if (paths.length === 0) {
+        return true;
+    }
+    const activeLower = activeFilter.toLowerCase().trim();
+    return paths.some(path => path.split(' > ')[0].trim().toLowerCase() === activeLower);
+}
+
+function getCourseSectionsList(courseId) {
+    if (!window.courseSectionsData) {
+        return [];
+    }
+    return window.courseSectionsData[courseId] ||
+        window.courseSectionsData[String(courseId)] ||
+        window.courseSectionsData[parseInt(courseId, 10)] ||
+        [];
+}
+
+/**
+ * Unique section display names for the current scope.
+ * No course/grade selected → all courses; otherwise only selected course IDs.
+ */
+function getVisibleSectionDisplayNames(scopedCourseIds) {
+    const activeFilter = getActiveResourceTierFilter();
+    const displayNamesSet = new Set();
+    const courseIds = (scopedCourseIds && scopedCourseIds.length > 0)
+        ? scopedCourseIds
+        : getAllTeacherCourseIds();
+
+    courseIds.forEach(courseId => {
+        getCourseSectionsList(courseId).forEach(section => {
+            const decoded = decodeHtmlEntities(section).trim();
+            if (decoded.indexOf(' > ') === -1) {
+                return;
+            }
+            if (activeFilter !== 'all') {
+                const main = decoded.split(' > ')[0].trim().toLowerCase();
+                if (main !== activeFilter.toLowerCase().trim()) {
+                    return;
                 }
             }
-            const fromCards = [];
-            document.querySelectorAll('.resource-card[data-course-name]').forEach(function(rc) {
-                const cardName = (rc.getAttribute('data-course-name') || '').trim().toLowerCase();
-                if (cardName && cardName === lower) {
-                    const id = parseInt(rc.getAttribute('data-course-id'), 10);
-                    if (id && fromCards.indexOf(id) === -1) fromCards.push(id);
-                }
-            });
-            return fromCards;
-        }
-        document.querySelectorAll('#categoryCardsGrid .category-card-checkbox:checked').forEach(checkbox => {
-            const card = checkbox.closest('.category-card');
-            if (!card) return;
-            const coursesJson = card.getAttribute('data-courses');
-            if (!coursesJson) return;
-            try {
-                const courses = JSON.parse(coursesJson);
-                if (Array.isArray(courses)) {
-                    courses.forEach(function(c) {
-                        const name = (c && c.name) ? String(c.name).trim() : '';
-                        nameToIds(name).forEach(function(id) {
-                            if (id && !selectedCourseIds.includes(id)) selectedCourseIds.push(id);
-                        });
-                    });
-                }
-            } catch (e) {}
+            const display = getSectionDisplayName(decoded);
+            if (display) {
+                displayNamesSet.add(display);
+            }
         });
-    })();
+    });
+
+    // Include sections from rendered resource cards (covers edge cases not in course structure)
+    document.querySelectorAll('.resource-card[data-section]').forEach(card => {
+        const cardCourseId = parseInt(card.getAttribute('data-course-id'), 10) || 0;
+        if (!courseIds.includes(cardCourseId)) {
+            return;
+        }
+        const section = decodeHtmlEntities(card.getAttribute('data-section') || '').trim();
+        if (section.indexOf(' > ') === -1) {
+            return;
+        }
+        if (activeFilter !== 'all') {
+            const main = section.split(' > ')[0].trim().toLowerCase();
+            if (main !== activeFilter.toLowerCase().trim()) {
+                return;
+            }
+        }
+        const display = getSectionDisplayName(section);
+        if (display) {
+            displayNamesSet.add(display);
+        }
+    });
+
+    return Array.from(displayNamesSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+}
+
+function getSectionPathsForDisplayInCourses(displayName, courseIds) {
+    const paths = new Set();
+    const target = decodeHtmlEntities(displayName || '').trim().toLowerCase();
+
+    courseIds.forEach(courseId => {
+        getCourseSectionsList(courseId).forEach(section => {
+            const decoded = decodeHtmlEntities(section).trim();
+            if (getSectionDisplayName(decoded).toLowerCase() === target) {
+                paths.add(decoded);
+            }
+        });
+    });
+
+    if (paths.size === 0 && window.uniqueSectionFilters && window.uniqueSectionFilters[displayName]) {
+        return window.uniqueSectionFilters[displayName].slice();
+    }
+
+    return Array.from(paths);
+}
+
+function populateGlobalSectionsFilter(scopedCourseIds) {
+    const sectionsFilterCheckboxSection = document.getElementById('sectionsFilterCheckboxSection');
+    const sectionsFiltersList = document.getElementById('sectionsFilters');
+    if (!sectionsFiltersList) {
+        return;
+    }
+
+    const checkedSections = new Set();
+    sectionsFiltersList.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+        checkedSections.add(checkbox.getAttribute('data-filter-value'));
+    });
+
+    sectionsFiltersList.innerHTML = '';
+
+    const displayNames = getVisibleSectionDisplayNames(scopedCourseIds);
+    const allowedNames = new Set(displayNames);
+
+    if (displayNames.length === 0) {
+        if (sectionsFilterCheckboxSection) {
+            sectionsFilterCheckboxSection.style.display = 'none';
+        }
+        return;
+    }
+
+    if (sectionsFilterCheckboxSection) {
+        sectionsFilterCheckboxSection.style.display = 'block';
+    }
+
+    let selectionChanged = false;
+    displayNames.forEach(displayName => {
+        const li = document.createElement('li');
+        li.className = 'filter-checkbox-item';
+
+        const label = document.createElement('label');
+        label.className = 'filter-checkbox-label';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'filter-checkbox';
+        checkbox.setAttribute('data-filter-type', 'section');
+        checkbox.setAttribute('data-filter-value', displayName);
+        checkbox.onchange = function() {
+            updateSectionsAndFoldersFilters();
+            filterResources();
+        };
+
+        if (checkedSections.has(displayName) && allowedNames.has(displayName)) {
+            checkbox.checked = true;
+        } else if (checkedSections.has(displayName) && !allowedNames.has(displayName)) {
+            selectionChanged = true;
+        }
+
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(displayName));
+        li.appendChild(label);
+        sectionsFiltersList.appendChild(li);
+    });
+
+    if (selectionChanged) {
+        filterResources();
+    }
+}
+
+// Populate sections and folders filters based on selected courses
+function updateSectionsAndFoldersFilters() {
+    const selectedCourseIds = getScopedCourseIds();
     
     const sectionsFilterCheckboxSection = document.getElementById('sectionsFilterCheckboxSection');
     const sectionsFiltersList = document.getElementById('sectionsFilters');
     const foldersFilterSection = document.getElementById('foldersFilterSection');
     const sectionsFilterSelect = document.getElementById('sectionsFilterSelect');
     const foldersFilterSelect = document.getElementById('foldersFilterSelect');
-    
-    // If no courses selected, hide sections filter section and disable dropdowns
+
+    const courseIdsForData = selectedCourseIds.length > 0 ? selectedCourseIds : getAllTeacherCourseIds();
+
+    // All courses when nothing selected; only sections in selected tier/grade/courses when drilling down
+    populateGlobalSectionsFilter(selectedCourseIds);
+
     if (selectedCourseIds.length === 0) {
-        if (sectionsFilterCheckboxSection) {
-            sectionsFilterCheckboxSection.style.display = 'none';
-        }
-        if (sectionsFiltersList) {
-            sectionsFiltersList.innerHTML = '';
-        }
         if (sectionsFilterSelect) {
             sectionsFilterSelect.disabled = true;
             sectionsFilterSelect.innerHTML = '<option value="">All Sections</option>';
         }
-        if (foldersFilterSelect) {
-            foldersFilterSelect.disabled = true;
-            foldersFilterSelect.innerHTML = '<option value="">All Folders</option>';
+        if (foldersFilterSelect && sectionsFiltersList) {
+            const hasSectionChecked = sectionsFiltersList.querySelector('input[type="checkbox"]:checked');
+            if (!hasSectionChecked) {
+                foldersFilterSelect.disabled = true;
+                foldersFilterSelect.innerHTML = '<option value="">All Folders</option>';
+                if (foldersFilterSection) {
+                    foldersFilterSection.style.display = 'none';
+                }
+            }
         }
-        // Hide folders filter when no courses are selected
-        if (foldersFilterSection) {
-            foldersFilterSection.style.display = 'none';
-        }
-        return;
     }
     
-    // Show sections filter section when courses are selected
-    if (sectionsFilterCheckboxSection) {
-        sectionsFilterCheckboxSection.style.display = 'block';
-    }
-    
-    // Get selected subsections from sidebar checkbox filter
+    // Get selected section display names from sidebar checkbox filter
     const selectedSubsections = [];
     if (sectionsFiltersList) {
         sectionsFiltersList.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
@@ -6738,7 +7208,7 @@ function updateSectionsAndFoldersFilters() {
     }
     
     if (window.courseSectionsData) {
-        selectedCourseIds.forEach(courseId => {
+        courseIdsForData.forEach(courseId => {
             // Try both string and number keys
             const courseSections = window.courseSectionsData[courseId] || 
                                    window.courseSectionsData[String(courseId)] || 
@@ -6822,7 +7292,7 @@ function updateSectionsAndFoldersFilters() {
     const allCards = document.querySelectorAll('.resource-card');
     allCards.forEach(card => {
         const cardCourseId = parseInt(card.getAttribute('data-course-id')) || 0;
-        if (selectedCourseIds.includes(cardCourseId)) {
+        if (courseIdsForData.includes(cardCourseId)) {
             const section = decodeHtmlEntities(card.getAttribute('data-section') || '');
             const folder = decodeHtmlEntities(card.getAttribute('data-folder-name') || '');
             
@@ -6878,128 +7348,7 @@ function updateSectionsAndFoldersFilters() {
         }
     }
     
-    // Populate sections checkbox filter - show only subsections, excluding those from active main filter
-    if (sectionsFiltersList) {
-        // Preserve currently checked sections
-        const checkedSections = new Set();
-        sectionsFiltersList.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
-            checkedSections.add(checkbox.getAttribute('data-filter-value'));
-        });
-        
-        // Clear existing checkboxes
-        sectionsFiltersList.innerHTML = '';
-        
-        // Get only subsections (sections containing " > ")
-        let filteredSubsections = Array.from(sectionsSet).filter(section => section.indexOf(' > ') !== -1);
-        
-        // Get the current active filter - prioritize the variable (set immediately) over DOM check
-        let activeFilter = 'all';
-        
-        // First, check the currentResourceTypeFilter variable (most reliable, set immediately)
-        if (typeof currentResourceTypeFilter !== 'undefined' && currentResourceTypeFilter && currentResourceTypeFilter !== 'all') {
-            activeFilter = String(currentResourceTypeFilter).toLowerCase().trim();
-        } else {
-            // Fallback: check the active tier card in DOM
-            const activeTierCard = document.querySelector('.tier-card.active');
-            if (activeTierCard) {
-                if (activeTierCard.classList.contains('tier-card-0')) {
-                    activeFilter = 'all';
-                } else if (activeTierCard.classList.contains('tier-card-1')) {
-                    activeFilter = 'plan';
-                } else if (activeTierCard.classList.contains('tier-card-2')) {
-                    activeFilter = 'teach';
-                } else if (activeTierCard.classList.contains('tier-card-3')) {
-                    activeFilter = 'assess';
-                } else {
-                    // Check data-tab attribute as additional fallback
-                    const dataTab = activeTierCard.getAttribute('data-tab');
-                    if (dataTab) {
-                        if (dataTab === 'planning' || dataTab === 'plan') {
-                            activeFilter = 'plan';
-                        } else if (dataTab === 'resources' || dataTab === 'teach') {
-                            activeFilter = 'teach';
-                        } else if (dataTab === 'assessments' || dataTab === 'assess') {
-                            activeFilter = 'assess';
-                        } else if (dataTab === 'all') {
-                            activeFilter = 'all';
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Normalize activeFilter to lowercase and trim
-        activeFilter = String(activeFilter).toLowerCase().trim();
-        
-        // If a main filter is active (plan/teach/assess), show ONLY subsections from that main section
-        // When "Plan" is active, show ONLY "Plan > ..." subsections, exclude "Teach > ..." and "Assess > ..."
-        // When "Teach" is active, show ONLY "Teach > ..." subsections, exclude "Plan > ..." and "Assess > ..."
-        // When "Assess" is active, show ONLY "Assess > ..." subsections, exclude "Plan > ..." and "Teach > ..."
-        if (activeFilter !== 'all' && activeFilter) {
-            filteredSubsections = filteredSubsections.filter(section => {
-                // Extract main section name from subsection (part before " > ")
-                const sectionParts = section.split(' > ');
-                if (sectionParts.length < 2) {
-                    // Not a subsection, exclude it (we only want subsections in this filter)
-                    return false;
-                }
-                
-                const subsectionMainSection = sectionParts[0].trim().toLowerCase();
-                const activeFilterLower = activeFilter.toLowerCase().trim();
-                
-                // Keep ONLY subsections that match the active filter
-                // If Plan is active, keep "Plan > ...", exclude "Teach > ..." and "Assess > ..."
-                // If Teach is active, keep "Teach > ...", exclude "Plan > ..." and "Assess > ..."
-                const matchesActiveFilter = subsectionMainSection === activeFilterLower;
-                return matchesActiveFilter; // Return true to keep (if matches), false to exclude (if doesn't match)
-            });
-        }
-        
-        // Sort the filtered subsections
-        const allSectionsArray = filteredSubsections.sort();
-        
-        if (allSectionsArray.length > 0) {
-            allSectionsArray.forEach((section) => {
-                const li = document.createElement('li');
-                li.className = 'filter-checkbox-item';
-                
-                const label = document.createElement('label');
-                label.className = 'filter-checkbox-label';
-                
-                // Extract only the subsection name (remove "Plan > ", "Teach > ", "Assess > " prefix)
-                let displaySection = section;
-                if (section.indexOf(' > ') !== -1) {
-                    // Get everything after " > " (the subsection name)
-                    const parts = section.split(' > ');
-                    if (parts.length > 1) {
-                        displaySection = parts.slice(1).join(' > '); // Join in case there are multiple " > " separators
-                    }
-                }
-                
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.className = 'filter-checkbox';
-                checkbox.setAttribute('data-filter-type', 'section');
-                checkbox.setAttribute('data-filter-value', section); // Keep original value for filtering
-                checkbox.onchange = function() { 
-                    updateSectionsAndFoldersFilters();
-                    filterResources(); 
-                };
-                
-                // Restore checked state if it was previously checked
-                if (checkedSections.has(section)) {
-                    checkbox.checked = true;
-                }
-                
-                label.appendChild(checkbox);
-                label.appendChild(document.createTextNode(displaySection)); // Display only subsection name
-                li.appendChild(label);
-                sectionsFiltersList.appendChild(li);
-            });
-        }
-    }
-    
-    // Populate folders and files filter - show only folders from selected subsections
+    // Populate folders and files filter - show only folders from selected section names
     if (foldersFilterSelect) {
         // Only enable if subsections are selected from sidebar checkbox filter
         const selectedSubsectionsFromCheckbox = [];
@@ -7031,26 +7380,30 @@ function updateSectionsAndFoldersFilters() {
             foldersFilterSelect.innerHTML = '<option value="">All Folders</option>';
             const foldersSet = new Set();
             
-            // Collect folders ONLY from the selected subsections
-            selectedSubsectionsFromCheckbox.forEach(selectedSubsection => {
-                // Get folders directly from the selected subsection
-                if (foldersMap.has(selectedSubsection)) {
-                    foldersMap.get(selectedSubsection).forEach(folder => {
-                        foldersSet.add(decodeHtmlEntities(folder));
-                    });
-                }
+            // Collect folders from course paths that match selected section display names (scoped to selection)
+            selectedSubsectionsFromCheckbox.forEach(selectedDisplay => {
+                const paths = getSectionPathsForDisplayInCourses(selectedDisplay, courseIdsForData);
+                paths.forEach(fullPath => {
+                    if (foldersMap.has(fullPath)) {
+                        foldersMap.get(fullPath).forEach(folder => {
+                            foldersSet.add(decodeHtmlEntities(folder));
+                        });
+                    }
+                });
             });
         
-            // Also collect from resource cards - only from selected subsections
+            // Also collect from resource cards across relevant courses
             allCards.forEach(card => {
                 const cardCourseId = parseInt(card.getAttribute('data-course-id')) || 0;
-                if (selectedCourseIds.includes(cardCourseId)) {
+                if (courseIdsForData.includes(cardCourseId)) {
                     const cardSection = decodeHtmlEntities(card.getAttribute('data-section') || '');
                     const cardFolder = decodeHtmlEntities(card.getAttribute('data-folder-name') || '');
                     
-                    // Add folder only if it matches one of the selected subsections
                     if (cardFolder && cardFolder.trim() !== '') {
-                        if (cardSection && selectedSubsectionsFromCheckbox.includes(cardSection)) {
+                        const matchesSelected = selectedSubsectionsFromCheckbox.some(selectedDisplay =>
+                            cardSectionMatchesFilter(cardSection, selectedDisplay)
+                        );
+                        if (matchesSelected) {
                             foldersSet.add(cardFolder);
                         }
                     }
@@ -7118,6 +7471,16 @@ function handleSectionSelect(selectElement) {
     updateSectionsAndFoldersFilters();
 }
 
+function getMultiSelectOptionLabel(checkbox) {
+    const label = checkbox?.closest('label');
+    if (!label) {
+        return '';
+    }
+    const clone = label.cloneNode(true);
+    clone.querySelectorAll('input, .filter-checkbox-dot').forEach(el => el.remove());
+    return clone.textContent.trim();
+}
+
 function updateMultiSelectText(filterId) {
     const listId = `${filterId}List`;
     const textElement = document.getElementById(`${filterId}Text`);
@@ -7126,11 +7489,16 @@ function updateMultiSelectText(filterId) {
     if (!textElement || !optionsList) return;
     
     const checked = optionsList.querySelectorAll('input[type="checkbox"]:checked');
+    const defaultLabels = {
+        sectionsFilters: 'All Sections',
+        foldersFilters: 'All Folders',
+        resourceTypeFilters: 'All Types'
+    };
     
     if (checked.length === 0) {
-        textElement.textContent = filterId === 'sectionsFilters' ? 'All Sections' : 'All Folders';
+        textElement.textContent = defaultLabels[filterId] || 'All';
     } else if (checked.length === 1) {
-        textElement.textContent = checked[0].closest('label').querySelector('span').textContent;
+        textElement.textContent = getMultiSelectOptionLabel(checked[0]);
     } else {
         textElement.textContent = `${checked.length} selected`;
     }
@@ -7363,9 +7731,9 @@ function filterResources() {
     const searchTerm = document.getElementById('resourceSearch')?.value.toLowerCase() || '';
     const allCards = document.querySelectorAll('.resource-card');
     
-    // Get selected resource types from checkboxes
+    // Get selected resource types from topbar multi-select checkboxes
     const selectedResourceTypes = [];
-    document.querySelectorAll('#resourceTypeFilters input[type="checkbox"]:checked').forEach(checkbox => {
+    document.querySelectorAll('#resourceTypeFiltersList input[type="checkbox"]:checked').forEach(checkbox => {
         selectedResourceTypes.push(checkbox.getAttribute('data-filter-value'));
     });
     
@@ -7382,65 +7750,17 @@ function filterResources() {
             if (categoryId) {
                 selectedCategoryIds.push(parseInt(categoryId));
             }
-        } else if (filterType === 'course') {
-            const courseId = checkbox.getAttribute('data-course-id');
-            if (courseId) {
-                selectedCourses.push(parseInt(courseId));
-            }
         }
     });
-    
-    // Include courses from checked grade/course cards (Grade 1, Grade 2, etc. in the tier area)
-    (function addCheckedCourseCardsToSelected() {
-        function nameToIds(name) {
-            if (!name) return [];
-            const n = String(name).trim();
-            if (window.courseNameToIds && window.courseNameToIds[n]) return window.courseNameToIds[n];
-            if (window.courseNameToIds) {
-                const lower = n.toLowerCase();
-                for (const key in window.courseNameToIds) {
-                    if (key.trim().toLowerCase() === lower) return window.courseNameToIds[key];
-                }
-            }
-            const fromCards = [];
-            document.querySelectorAll('.resource-card[data-course-name]').forEach(function(rc) {
-                const cardName = (rc.getAttribute('data-course-name') || '').trim().toLowerCase();
-                if (cardName && cardName === n.toLowerCase()) {
-                    const id = parseInt(rc.getAttribute('data-course-id'), 10);
-                    if (id && fromCards.indexOf(id) === -1) fromCards.push(id);
-                }
-            });
-            return fromCards;
+
+    // Tier grade cards, Foundation/Intermediate/Advanced, then sidebar courses (same scope as section filter)
+    const scopedCourseIds = typeof getScopedCourseIds === 'function' ? getScopedCourseIds() : [];
+    const tierSelectedCourseNames = typeof getTierSelectedCourseNames === 'function' ? getTierSelectedCourseNames() : [];
+    scopedCourseIds.forEach(function(courseId) {
+        if (selectedCourses.indexOf(courseId) === -1) {
+            selectedCourses.push(courseId);
         }
-        document.querySelectorAll('.course-card.checked').forEach(function(courseCard) {
-            const id = parseInt(courseCard.getAttribute('data-course-id'), 10);
-            if (id > 0 && selectedCourses.indexOf(id) === -1) selectedCourses.push(id);
-            let added = false;
-            const allIdsAttr = courseCard.getAttribute('data-all-course-ids');
-            if (allIdsAttr) {
-                try {
-                    const allIds = JSON.parse(allIdsAttr);
-                    if (Array.isArray(allIds)) {
-                        allIds.forEach(function(cid) {
-                            const cidNum = parseInt(cid, 10);
-                            if (cidNum > 0 && selectedCourses.indexOf(cidNum) === -1) {
-                                selectedCourses.push(cidNum);
-                                added = true;
-                            }
-                        });
-                    }
-                } catch (e) {}
-            }
-            if (!added) {
-                const courseName = (courseCard.getAttribute('data-course-name') || '').trim();
-                if (courseName) {
-                    nameToIds(courseName).forEach(function(cid) {
-                        if (cid && selectedCourses.indexOf(cid) === -1) selectedCourses.push(cid);
-                    });
-                }
-            }
-        });
-    })();
+    });
     
     // Get selected sections from checkbox filters (priority) or select dropdown (fallback)
     const selectedSections = [];
@@ -7529,21 +7849,21 @@ function filterResources() {
         
         // Resource type filter (if any checkboxes are selected)
         if (selectedResourceTypes.length > 0) {
-            // Check if "images" is selected (grouped image types)
             const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp', 'webp'];
-            const isImageType = imageExtensions.includes(cardType);
-            const isImagesSelected = selectedResourceTypes.includes('images');
-            
-            // If card is an image type and "images" is selected, it matches
-            if (isImageType && isImagesSelected) {
-                matchesResourceType = true;
-            } else if (isImageType && !isImagesSelected) {
-                // Card is an image but "images" is not selected
-                matchesResourceType = false;
-            } else {
-                // For non-image types, check normal match
-                matchesResourceType = selectedResourceTypes.includes(cardType);
+            const videoExtensions = ['html', 'htm', 'mp4', 'avi', 'mov', 'wmv', 'mkv', 'webm', 'videos'];
+            let normalizedCardType = cardType;
+            if (videoExtensions.includes(cardType)) {
+                normalizedCardType = 'videos';
+            } else if (imageExtensions.includes(cardType)) {
+                normalizedCardType = 'images';
+            } else if (cardType === 'ppt') {
+                normalizedCardType = 'pptx';
+            } else if (cardType === 'doc') {
+                normalizedCardType = 'docx';
+            } else if (cardType === 'xls') {
+                normalizedCardType = 'xlsx';
             }
+            matchesResourceType = selectedResourceTypes.includes(normalizedCardType);
         }
         
         // Category and course filter (if any checkboxes are selected)
@@ -7555,9 +7875,9 @@ function filterResources() {
             const cardCategoryId = parseInt(card.getAttribute('data-category-id')) || 0;
             const cardCourseId = parseInt(card.getAttribute('data-course-id')) || 0;
             
-            // If ANY course is selected, ONLY match by course (ignore category selections)
-            if (selectedCourses.length > 0) {
-                matchesCategory = selectedCourses.includes(cardCourseId);
+            // If ANY course is selected, ONLY match by course ID and/or selected grade name
+            if (selectedCourses.length > 0 || tierSelectedCourseNames.length > 0) {
+                matchesCategory = resourceCardMatchesSelectedCourses(card, selectedCourses, tierSelectedCourseNames);
             } else {
                 // Only check category match if NO courses are selected
                 if (selectedCategoryIds.length > 0) {
@@ -7574,28 +7894,15 @@ function filterResources() {
             }
         }
         
-        // Section filter (if sections are selected from checkboxes or dropdown)
+        // Section filter — when a grade/course is selected, section name must match AND course must match
         if (selectedSections.length > 0) {
             const cardSection = decodeHtmlEntities(card.getAttribute('data-section') || '');
-            
-            // Match exact section or if card section starts with selected section (for subsections)
-            matchesSection = selectedSections.some(selectedSection => {
-                const cardSectionLower = cardSection.toLowerCase();
-                const selectedSectionLower = selectedSection.toLowerCase();
-                
-                // Exact match
-                if (cardSectionLower === selectedSectionLower) {
-                    return true;
-                }
-                
-                // If selected section is a main section (no " > "), match all its subsections
-                if (selectedSection.indexOf(' > ') === -1) {
-                    return cardSectionLower.startsWith(selectedSectionLower + ' > ');
-                }
-                
-                // If selected section is a subsection, only match exact
-                return false;
-            });
+            matchesSection = selectedSections.some(selectedSection =>
+                cardSectionMatchesFilter(cardSection, selectedSection)
+            );
+            if (matchesSection && (selectedCourses.length > 0 || tierSelectedCourseNames.length > 0)) {
+                matchesSection = matchesSection && resourceCardMatchesSelectedCourses(card, selectedCourses, tierSelectedCourseNames);
+            }
         }
         
         // Folder filter (if a folder is selected from the select dropdown)
@@ -8009,10 +8316,13 @@ function clearSearch() {
 function resetAllFilters() {
     document.getElementById('resourceSearch').value = '';
     
-    // Uncheck all filter checkboxes
-    document.querySelectorAll('#resourceTypeFilters input[type="checkbox"]').forEach(checkbox => {
+    // Uncheck all resource type filter checkboxes
+    document.querySelectorAll('#resourceTypeFiltersList input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = false;
     });
+    if (typeof updateMultiSelectText === 'function') {
+        updateMultiSelectText('resourceTypeFilters');
+    }
     document.querySelectorAll('#categoryFilters input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = false;
     });
@@ -8558,7 +8868,7 @@ function loadTeacherHelpVideos() {
     videosListContainer.innerHTML = '<p style="text-align: center; padding: 20px; color: #666;"><i class="fa fa-spinner fa-spin" style="font-size: 24px;"></i><br>Loading help videos...</p>';
     
     // Fetch videos from plugin endpoint for 'teachers' category
-    fetch(M.cfg.wwwroot + '/local/support/get_videos.php?category=teachers')
+    fetch(M.cfg.wwwroot + '/theme/remui_kids/ajax/support_videos.php?category=teachers&targetrole=teacher')
         .then(response => response.json())
         .then(data => {
             console.log('Teacher Support Videos Response:', data);
