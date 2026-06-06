@@ -172,6 +172,22 @@ $is_training_library = theme_remui_kids_sidebar_match($current_script, [
     'training_library.php',
 ]) || (strpos($current_url, '/theme/remui_kids/teacher/training_library.php') !== false);
 
+$is_editing_teacher_sidebar = false;
+if (isloggedin() && !isguestuser() && !is_siteadmin($USER)) {
+    // Check if user has editingteacher archetype role assignment in any visible course
+    $sql = "SELECT ra.id
+            FROM {role_assignments} ra
+            JOIN {role} r ON r.id = ra.roleid
+            JOIN {context} ctx ON ctx.id = ra.contextid
+            JOIN {course} c ON c.id = ctx.instanceid
+            WHERE ra.userid = :userid 
+            AND r.archetype = 'editingteacher'
+            AND ctx.contextlevel = 50
+            AND c.id != 1
+            AND c.visible = 1";
+    $is_editing_teacher_sidebar = $DB->record_exists_sql($sql, ['userid' => $USER->id]);
+}
+
 ?>
 
 <!-- Mobile Sidebar Toggle Button -->
@@ -180,52 +196,155 @@ $is_training_library = theme_remui_kids_sidebar_match($current_script, [
 </button>
 
 <!-- Teacher Sidebar Navigation -->
-<div class="teacher-sidebar" id="teacherSidebar">
+<div class="teacher-sidebar <?php echo ($is_editing_teacher_sidebar && $current_script === 'view_course.php') ? 'has-filters' : ''; ?>" id="teacherSidebar">
     <div class="sidebar-content">
-        <!-- DASHBOARD Section -->
-        <div class="sidebar-section">
-            <h3 class="sidebar-category">DASHBOARD</h3>
-            <ul class="sidebar-menu">
-                <li class="sidebar-item <?php echo $is_resources ? 'active' : ''; ?>">
-                    <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/teacher/view_course.php" class="sidebar-link">
-                    <i class="fa fa-th-large sidebar-icon"></i>
-                        <span class="sidebar-text">Dashboard</span>
-                    </a>
-                </li>
-            </ul>
-        </div>
+        <?php if ($is_editing_teacher_sidebar): ?>
+            <?php if ($current_script === 'view_course.php'): ?>
+                <!-- Sidebar Filters Container -->
+                <div class="sidebar-filters-container">
+                    <div class="resources-sidebar-header">
+                        <h3 class="resources-sidebar-title">
+                            <i class="fa fa-filter"></i> Filters
+                        </h3>
+                        <a href="#" class="clear-filters-link" onclick="resetAllFilters(); return false;">Clear all</a>
+                    </div>
 
-        <!-- E-BOOKS Section -->
-        <div class="sidebar-section">
-            <h3 class="sidebar-category">E-BOOKS</h3>
-            <ul class="sidebar-menu">
-                <li class="sidebar-item <?php echo $is_ebooks ? 'active' : ''; ?>">
-                    <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/teacher/ebooks.php" class="sidebar-link">
-                        <i class="fa fa-book sidebar-icon"></i>
-                        <span class="sidebar-text">E-Books</span>
-                    </a>
-                </li>
-            </ul>
-        </div>
+                    <!-- Curriculum Filter (conditional) -->
+                    <?php if (isset($has_ksa_resources) && isset($has_gcc_resources) && $has_ksa_resources && $has_gcc_resources): ?>
+                        <div class="filter-section curriculum-filter-section">
+                            <h4 class="filter-section-title">
+                                <span>Curriculum</span>
+                            </h4>
+                            <div class="curriculum-checkboxes-container">
+                                <label class="filter-checkbox-wrapper <?php echo ($default_curriculum === 'ksa') ? 'checked' : ''; ?>" id="label_curr_ksa">
+                                    <span class="custom-checkbox">
+                                        <i class="fa fa-check"></i>
+                                    </span>
+                                    <input type="checkbox" id="sidebar_curr_ksa" class="sidebar-curr-checkbox" value="ksa" <?php echo ($default_curriculum === 'ksa') ? 'checked' : ''; ?> onchange="handleSidebarCurriculumClick('ksa')">
+                                    <span class="checkbox-label">KSA</span>
+                                </label>
+                                
+                                <label class="filter-checkbox-wrapper <?php echo ($default_curriculum === 'gcc') ? 'checked' : ''; ?>" id="label_curr_gcc">
+                                    <span class="custom-checkbox">
+                                        <i class="fa fa-check"></i>
+                                    </span>
+                                    <input type="checkbox" id="sidebar_curr_gcc" class="sidebar-curr-checkbox" value="gcc" <?php echo ($default_curriculum === 'gcc') ? 'checked' : ''; ?> onchange="handleSidebarCurriculumClick('gcc')">
+                                    <span class="checkbox-label">GCC</span>
+                                </label>
+                            </div>
+                        </div>
+                    <?php endif; ?>
 
-        <!-- SUPPORT Section -->
-        <div class="sidebar-section">
-            <h3 class="sidebar-category">SUPPORT</h3>
-            <ul class="sidebar-menu">
-                <li class="sidebar-item <?php echo $is_training_library ? 'active' : ''; ?>">
-                    <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/teacher/training_library.php" class="sidebar-link">
-                        <i class="fa fa-graduation-cap sidebar-icon"></i>
-                        <span class="sidebar-text">Training Library</span>
-                    </a>
-                </li>
-                <li class="sidebar-item <?php echo $is_help_support ? 'active' : ''; ?>">
-                    <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/teacher/help_support.php" class="sidebar-link">
-                        <i class="fa fa-life-ring sidebar-icon"></i>
-                        <span class="sidebar-text">Help &amp; Support</span>
-                    </a>
-                </li>
-            </ul>
-        </div>
+                    <!-- Category Filters (Hidden from frontend, functionality preserved) -->
+                    <div class="filter-section" style="display: none;">
+                        <h4 class="filter-section-title">
+                            <span>Category</span>
+                        </h4>
+                        <ul class="filter-checkbox-list" id="categoryFilters">
+                            <!-- Will be populated by JavaScript -->
+                        </ul>
+                    </div>
+
+                    <!-- Sections Filter (all unique section names across courses, shown on load) -->
+                    <div class="filter-section" id="sectionsFilterCheckboxSection">
+                        <h4 class="filter-section-title" onclick="toggleFilterSection(this)">
+                            <span>Sections</span>
+                            <i class="fa fa-chevron-down"></i>
+                        </h4>
+                        <ul class="filter-checkbox-list" id="sectionsFilters">
+                            <!-- Populated from all courses on page load -->
+                        </ul>
+                    </div>
+                </div>
+
+                <script>
+                // Mutually exclusive curriculum filter click handlers for sidebar
+                function handleSidebarCurriculumClick(curriculum) {
+                    const ksaCheckbox = document.getElementById('sidebar_curr_ksa');
+                    const gccCheckbox = document.getElementById('sidebar_curr_gcc');
+                    const ksaLabel = document.getElementById('label_curr_ksa');
+                    const gccLabel = document.getElementById('label_curr_gcc');
+                    
+                    if (curriculum === 'ksa') {
+                        if (ksaCheckbox && ksaCheckbox.checked) {
+                            if (gccCheckbox) gccCheckbox.checked = false;
+                            if (ksaLabel) ksaLabel.classList.add('checked');
+                            if (gccLabel) gccLabel.classList.remove('checked');
+                            if (typeof filterByCurriculum === 'function') {
+                                filterByCurriculum('ksa');
+                            }
+                        } else {
+                            if (ksaCheckbox) ksaCheckbox.checked = true;
+                        }
+                    } else if (curriculum === 'gcc') {
+                        if (gccCheckbox && gccCheckbox.checked) {
+                            if (ksaCheckbox) ksaCheckbox.checked = false;
+                            if (gccLabel) gccLabel.classList.add('checked');
+                            if (ksaLabel) ksaLabel.classList.remove('checked');
+                            if (typeof filterByCurriculum === 'function') {
+                                filterByCurriculum('gcc');
+                            }
+                        } else {
+                            if (gccCheckbox) gccCheckbox.checked = true;
+                        }
+                    }
+                }
+                
+                function toggleSidebarCurriculum(curriculum) {
+                    const checkbox = document.getElementById('sidebar_curr_' + curriculum);
+                    if (checkbox) {
+                        checkbox.checked = !checkbox.checked;
+                        handleSidebarCurriculumClick(curriculum);
+                    }
+                }
+                </script>
+            <?php endif; ?>
+        <?php else: ?>
+            <!-- DASHBOARD Section -->
+            <div class="sidebar-section">
+                <h3 class="sidebar-category">DASHBOARD</h3>
+                <ul class="sidebar-menu">
+                    <li class="sidebar-item <?php echo $is_resources ? 'active' : ''; ?>">
+                        <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/teacher/view_course.php" class="sidebar-link">
+                        <i class="fa fa-th-large sidebar-icon"></i>
+                            <span class="sidebar-text">Dashboard</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- E-BOOKS Section -->
+            <div class="sidebar-section">
+                <h3 class="sidebar-category">E-BOOKS</h3>
+                <ul class="sidebar-menu">
+                    <li class="sidebar-item <?php echo $is_ebooks ? 'active' : ''; ?>">
+                        <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/teacher/ebooks.php" class="sidebar-link">
+                            <i class="fa fa-book sidebar-icon"></i>
+                            <span class="sidebar-text">E-Books</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- SUPPORT Section -->
+            <div class="sidebar-section">
+                <h3 class="sidebar-category">SUPPORT</h3>
+                <ul class="sidebar-menu">
+                    <li class="sidebar-item <?php echo $is_training_library ? 'active' : ''; ?>">
+                        <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/teacher/training_library.php" class="sidebar-link">
+                            <i class="fa fa-graduation-cap sidebar-icon"></i>
+                            <span class="sidebar-text">Training Library</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item <?php echo $is_help_support ? 'active' : ''; ?>">
+                        <a href="<?php echo $CFG->wwwroot; ?>/theme/remui_kids/teacher/help_support.php" class="sidebar-link">
+                            <i class="fa fa-life-ring sidebar-icon"></i>
+                            <span class="sidebar-text">Help &amp; Support</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        <?php endif; ?>
 
     </div>
 </div>

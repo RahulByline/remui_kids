@@ -26,6 +26,16 @@ class core_renderer extends \theme_remui\output\core_renderer {
      * @param array|stdClass $context The context for the template
      * @return string The rendered template
      */
+    /** @var bool|null Static cache for editing teacher check to prevent multiple DB queries. */
+    protected static $is_editing_teacher_cached = null;
+
+    /**
+     * Override render_from_template to inject translated strings
+     *
+     * @param string $templatename The name of the template
+     * @param array|stdClass $context The context for the template
+     * @return string The rendered template
+     */
     public function render_from_template($templatename, $context) {
         // Convert to array if object
         if (is_object($context)) {
@@ -39,8 +49,71 @@ class core_renderer extends \theme_remui\output\core_renderer {
         if ($templatename === 'mod_assign/grading_navigation') {
             $context = $this->inject_translator_context($context);
         }
+
+        // Always inject teacher navbar context variables to make sure they're available in nested partials (like navbar)
+        $context = $this->inject_teacher_navbar_context($context);
         
         return parent::render_from_template($templatename, $context);
+    }
+
+    /**
+     * Check if the logged-in user is strictly an editing teacher (excluding site admins).
+     *
+     * @return bool True if strictly an editing teacher, false otherwise.
+     */
+    protected function is_user_editing_teacher() {
+        global $USER, $DB;
+        if (self::$is_editing_teacher_cached !== null) {
+            return self::$is_editing_teacher_cached;
+        }
+        if (!isloggedin() || isguestuser()) {
+            self::$is_editing_teacher_cached = false;
+            return false;
+        }
+        
+        // Exclude site admins / super admins
+        if (is_siteadmin($USER)) {
+            self::$is_editing_teacher_cached = false;
+            return false;
+        }
+        
+        // Check if user has editingteacher archetype role assignment in any visible course
+        $sql = "SELECT ra.id
+                FROM {role_assignments} ra
+                JOIN {role} r ON r.id = ra.roleid
+                JOIN {context} ctx ON ctx.id = ra.contextid
+                JOIN {course} c ON c.id = ctx.instanceid
+                WHERE ra.userid = :userid 
+                AND r.archetype = 'editingteacher'
+                AND ctx.contextlevel = 50
+                AND c.id != 1
+                AND c.visible = 1";
+        self::$is_editing_teacher_cached = $DB->record_exists_sql($sql, ['userid' => $USER->id]);
+        return self::$is_editing_teacher_cached;
+    }
+
+    /**
+     * Inject teacher navbar context variables
+     *
+     * @param array $context The template context
+     * @return array The updated context
+     */
+    protected function inject_teacher_navbar_context($context) {
+        global $PAGE;
+        
+        $is_editing_teacher = $this->is_user_editing_teacher();
+        $context['is_editing_teacher'] = $is_editing_teacher;
+        
+        if ($is_editing_teacher) {
+            // Set active states based on current URL path
+            $currenturl = $_SERVER['REQUEST_URI'];
+            $context['teacher_active_resources'] = (strpos($currenturl, '/teacher/view_course.php') !== false);
+            $context['teacher_active_ebooks'] = (strpos($currenturl, '/teacher/ebooks.php') !== false || strpos($currenturl, '/teacher/teacher_book.php') !== false || strpos($currenturl, '/teacher/student_book.php') !== false || strpos($currenturl, '/teacher/practice_book.php') !== false);
+            $context['teacher_active_training'] = (strpos($currenturl, '/teacher/training_library.php') !== false);
+            $context['teacher_active_support'] = (strpos($currenturl, '/teacher/help_support.php') !== false);
+        }
+        
+        return $context;
     }
 
     /**

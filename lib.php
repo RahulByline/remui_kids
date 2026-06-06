@@ -533,6 +533,11 @@ function theme_remui_kids_before_standard_html_head($page = null, $output = null
     $page = $page ?? $PAGE;
     if ($page) {
         theme_remui_kids_maybe_redirect_parent($page);
+        
+        // Load navbar fix assets with Moodle's native cache-busting
+        $page->requires->css('/theme/remui_kids/style/navbar_fix.css');
+        $page->requires->css('/theme/remui_kids/style/accessibility_widget_fix.css');
+        $page->requires->js('/theme/remui_kids/javascript/navbar_scroll_fix.js', true);
     }
 }
 

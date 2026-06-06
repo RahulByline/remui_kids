@@ -274,3 +274,263 @@ body.path-mod-url #page-footer .footer-content {
     margin: 0 !important;
     padding: 0 !important;
 }
+
+/* ========================================
+   TEACHER TOP NAVIGATION STYLES
+   ======================================== */
+
+.navbar-nav.teacher-top-nav {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+/* Dashboard and My Courses Nav Link Styles */
+.dashboard-nav-link,
+.mycourses-nav-link,
+.ebooks-nav-link,
+.training-nav-link,
+.support-nav-link {
+    color: #475569 !important;
+    font-weight: 500 !important;
+    padding: 0.5rem 0.75rem !important;
+    border-radius: 6px !important;
+    transition: all 0.2s ease !important;
+    text-decoration: none !important;
+}
+
+.dashboard-nav-link:hover,
+.mycourses-nav-link:hover,
+.ebooks-nav-link:hover,
+.training-nav-link:hover,
+.support-nav-link:hover {
+    background-color: rgba(99, 102, 241, 0.1) !important;
+    color: #6366f1 !important;
+}
+
+.dashboard-nav-link.active-nav-link,
+.mycourses-nav-link.active-nav-link,
+.ebooks-nav-link.active-nav-link,
+.training-nav-link.active-nav-link,
+.support-nav-link.active-nav-link {
+    background-color: rgba(99, 102, 241, 0.1) !important;
+    color: #6366f1 !important;
+    font-weight: 600 !important;
+}
+
+.dashboard-nav-link i,
+.mycourses-nav-link i,
+.ebooks-nav-link i,
+.training-nav-link i,
+.support-nav-link i {
+    font-size: 1rem !important;
+    margin-right: 0.35rem !important;
+}
+
+.navbar-nav.teacher-top-nav .nav-link {
+    color: #475569 !important;
+    font-weight: 500 !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+    text-decoration: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.navbar-nav.teacher-top-nav .nav-link:hover {
+    background-color: rgba(99, 102, 241, 0.1) !important;
+    color: #6366f1 !important;
+}
+
+.navbar-nav.teacher-top-nav .nav-link.active-nav-link {
+    background-color: rgba(99, 102, 241, 0.1) !important;
+    color: #6366f1 !important;
+    font-weight: 600 !important;
+}
+
+.navbar-nav.teacher-top-nav .nav-link i {
+    font-size: 14px !important;
+}
+
+@media (max-width: 991px) {
+    .navbar-nav.teacher-top-nav .nav-link span {
+        display: none !important;
+    }
+    .navbar-nav.teacher-top-nav .nav-link {
+        padding: 0.5rem !important;
+    }
+}
+
+/* ========================================
+   TEACHER SIDEBAR FILTERS (view_course.php)
+   ======================================== */
+.teacher-sidebar .resources-sidebar-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 16px 20px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    margin-bottom: 16px !important;
+}
+
+.teacher-sidebar .resources-sidebar-title {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #1e293b !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.teacher-sidebar .clear-filters-link {
+    font-size: 13px !important;
+    color: #6366f1 !important;
+    text-decoration: none !important;
+    font-weight: 500 !important;
+}
+
+.teacher-sidebar .clear-filters-link:hover {
+    color: #4f46e5 !important;
+    text-decoration: underline !important;
+}
+
+.teacher-sidebar .filter-section {
+    padding: 0 20px 20px 20px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    margin-bottom: 16px !important;
+}
+
+.teacher-sidebar .filter-section-title {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    margin-bottom: 12px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    cursor: pointer !important;
+}
+
+.teacher-sidebar .filter-section-title i {
+    font-size: 10px !important;
+    transition: transform 0.2s ease !important;
+    color: #64748b !important;
+}
+
+.teacher-sidebar .filter-section-title.collapsed i {
+    transform: rotate(-90deg) !important;
+}
+
+.teacher-sidebar .curriculum-checkboxes-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    background: #f8fafc !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+}
+
+.teacher-sidebar .filter-checkbox-wrapper {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    cursor: pointer !important;
+    margin: 0 !important;
+    padding: 6px 8px !important;
+    border-radius: 6px !important;
+    transition: all 0.2s ease !important;
+}
+
+.teacher-sidebar .filter-checkbox-wrapper:hover {
+    background: #f1f5f9 !important;
+}
+
+.teacher-sidebar .filter-checkbox-wrapper input[type="checkbox"] {
+    display: none !important;
+}
+
+.teacher-sidebar .filter-checkbox-wrapper .custom-checkbox {
+    width: 18px !important;
+    height: 18px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #fff !important;
+    transition: all 0.2s ease !important;
+}
+
+.teacher-sidebar .filter-checkbox-wrapper .custom-checkbox i {
+    font-size: 10px !important;
+    color: #fff !important;
+    display: none !important;
+}
+
+.teacher-sidebar .filter-checkbox-wrapper.checked .custom-checkbox {
+    background: #0f172a !important;
+    border-color: #0f172a !important;
+}
+
+.teacher-sidebar .filter-checkbox-wrapper.checked .custom-checkbox i {
+    display: block !important;
+}
+
+.teacher-sidebar .filter-checkbox-wrapper.checked {
+    background: #f1f5f9 !important;
+}
+
+.teacher-sidebar .filter-checkbox-wrapper .checkbox-label {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: #334155 !important;
+}
+
+.teacher-sidebar .filter-checkbox-wrapper.checked .checkbox-label {
+    font-weight: 600 !important;
+    color: #0f172a !important;
+}
+
+.teacher-sidebar .filter-checkbox-list {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-height: 400px !important;
+    overflow-y: auto !important;
+}
+
+.teacher-sidebar .filter-checkbox-item {
+    margin-bottom: 4px !important;
+}
+
+.teacher-sidebar .filter-checkbox-label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    cursor: pointer !important;
+    padding: 8px 4px !important;
+    border-radius: 6px !important;
+    transition: background 0.15s ease !important;
+    font-size: 14px !important;
+    color: #334155 !important;
+    font-weight: 400 !important;
+}
+
+.teacher-sidebar .filter-checkbox-label:hover {
+    background: #f8fafc !important;
+}
+
+.teacher-sidebar .filter-checkbox-label input[type="checkbox"] {
+    cursor: pointer !important;
+    accent-color: #6366f1 !important;
+}
+
+/* Adjust padding inside sidebar content when rendering filters */
+.teacher-sidebar.has-filters .sidebar-content {
+    padding: 5.5rem 0 2rem 0 !important;
+}
