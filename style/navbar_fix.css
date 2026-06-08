@@ -506,9 +506,9 @@ body.path-mod-url #page-footer .footer-content {
 }
 
 .teacher-sidebar .grade-pill.on {
-    background: #ede9fe !important;
-    border-color: #c084fc !important;
-    color: #7c3aed !important;
+    background: #fef1e9 !important;
+    border-color: #ff8403 !important;
+    color: #ff8403 !important;
     font-weight: 700 !important;
 }
 
@@ -576,21 +576,21 @@ body.path-mod-url #page-footer .footer-content {
 
 /* Hover States - mockup specific colors */
 .category-toggle-item[data-tab="all"]:hover:not(.active) {
-    color: #a61d4c !important;
-    background: rgba(194, 37, 92, 0.04) !important;
+    background: rgb(255 203 4 / 12%) !important;
+    color: #c58300 !important;
 }
 
 .category-toggle-item[data-tab="all"]:hover:not(.active) i {
-    color: #a61d4c !important;
+    color: #c58300 !important;
 }
 
 .category-toggle-item[data-tab="planning"]:hover:not(.active) {
-    color: #2b4acb !important;
-    background: rgba(59, 91, 219, 0.04) !important;
+    background: rgb(255 135 2 / 12%) !important;
+    color: #ff8702 !important;
 }
 
 .category-toggle-item[data-tab="planning"]:hover:not(.active) i {
-    color: #2b4acb !important;
+    color: #ff8702 !important;
 }
 
 .category-toggle-item[data-tab="resources"]:hover:not(.active) {
@@ -603,12 +603,12 @@ body.path-mod-url #page-footer .footer-content {
 }
 
 .category-toggle-item[data-tab="assessments"]:hover:not(.active) {
-    color: #b93a0a !important;
-    background: rgba(194, 65, 12, 0.04) !important;
+    color: #28bbe4 !important;
+    background: rgb(88 213 240 / 12%) !important;
 }
 
 .category-toggle-item[data-tab="assessments"]:hover:not(.active) i {
-    color: #b93a0a !important;
+    color: #28bbe4 !important;
 }
 
 /* Active State - white background and subtle border */
@@ -622,30 +622,30 @@ body.path-mod-url #page-footer .footer-content {
 
 /* All Resources (Active) */
 .category-toggle-item[data-tab="all"].active {
-    color: #a61d4c !important;
+    color: #c58300 !important;
 }
 
 .category-toggle-item[data-tab="all"].active i {
-    color: #a61d4c !important;
+    color: #c58300 !important;
 }
 
 .category-toggle-item[data-tab="all"].active .category-toggle-count {
-    background: rgba(194, 37, 92, 0.12) !important;
-    color: #a61d4c !important;
+    background: rgb(255 203 4 / 12%) !important;
+    color: #c58300 !important;
 }
 
 /* Plan (Active) */
 .category-toggle-item[data-tab="planning"].active {
-    color: #2b4acb !important;
+    color: #ff8702 !important;
 }
 
 .category-toggle-item[data-tab="planning"].active i {
-    color: #2b4acb !important;
+    color: #ff8702 !important;
 }
 
 .category-toggle-item[data-tab="planning"].active .category-toggle-count {
-    background: rgba(59, 91, 219, 0.12) !important;
-    color: #2b4acb !important;
+    background: rgb(255 135 2 / 12%) !important;
+    color: #ff8702 !important;
 }
 
 /* Teach (Active) */
@@ -664,16 +664,16 @@ body.path-mod-url #page-footer .footer-content {
 
 /* Assess (Active) */
 .category-toggle-item[data-tab="assessments"].active {
-    color: #b93a0a !important;
+    color: #28bbe4 !important;
 }
 
 .category-toggle-item[data-tab="assessments"].active i {
-    color: #b93a0a !important;
+    color: #28bbe4 !important;
 }
 
 .category-toggle-item[data-tab="assessments"].active .category-toggle-count {
-    background: rgba(194, 65, 12, 0.12) !important;
-    color: #b93a0a !important;
+    background: rgb(88 213 240 / 12%) !important;
+    color: #28bbe4 !important;
 }
 
 /* Responsive adjustments */

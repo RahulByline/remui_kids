@@ -419,6 +419,31 @@ try {
     }
 }
 
+// Fetch all user bookmarks
+$user_bookmarks = [];
+try {
+    $bookmark_records = $DB->get_records('theme_remui_kids_bookmarks', ['userid' => $USER->id]);
+    if (!empty($bookmark_records)) {
+        foreach ($bookmark_records as $rec) {
+            $user_bookmarks[$rec->res_type . '_' . $rec->res_id] = true;
+        }
+    }
+} catch (dml_exception $e) {
+    // If table doesn't exist, create it dynamically
+    $dbman = $DB->get_manager();
+    $bookmarks_table = new xmldb_table('theme_remui_kids_bookmarks');
+    if (!$dbman->table_exists($bookmarks_table)) {
+        $bookmarks_table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $bookmarks_table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $bookmarks_table->add_field('res_type', XMLDB_TYPE_CHAR, '10', null, XMLDB_NOTNULL, null, null);
+        $bookmarks_table->add_field('res_id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $bookmarks_table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $bookmarks_table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $bookmarks_table->add_key('user_res_key', XMLDB_KEY_UNIQUE, ['userid', 'res_type', 'res_id']);
+        $dbman->create_table($bookmarks_table);
+    }
+}
+
 // Grade numbers from courses with actual resources — will be rebuilt after $all_resources is populated
 $teacher_grade_numbers = [];
 $PAGE->set_url(theme_remui_kids_teacher_theme_teacher_path() . '/teacher_resources.php');
@@ -919,6 +944,67 @@ echo $OUTPUT->header();
 ?>
 
 <style>
+    /* Tabs styling for Teacher Resources */
+    .ws-tabs {
+        display: inline-flex;
+        gap: 8px;
+        background: #f1f5f9;
+        padding: 4px;
+        border-radius: 10px;
+        height: 48px;
+        align-items: center;
+        margin-left: auto;
+    }
+
+    .ws-tab {
+        padding: 8px 16px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: #64748b;
+        border-radius: 8px;
+        cursor: pointer;
+        background: transparent;
+        border: none;
+        transition: all 0.15s ease;
+        user-select: none;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: calc(100% - 8px);
+    }
+
+    .ws-tab:hover {
+        color: #1e293b;
+    }
+
+    .ws-tab.active {
+        background: #ffffff;
+        color: #0f172a;
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+
+    .ws-tab .seg-count {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 20px;
+        line-height: 1;
+        background: #e2e8f0;
+        color: #475569;
+    }
+
+    .ws-tab.active .seg-count {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+
+    /* Bookmark button styling active state */
+    .resource-card-action-btn.bookmark-btn.active i {
+        color: #ff8702 !important;
+    }
+
     /* Hide ALL Moodle navigation and UI elements */
     #region-main,
     [role="main"] {
@@ -2660,15 +2746,15 @@ echo $OUTPUT->header();
         position: absolute;
         top: 11px;
         right: 12px;
-        width: 66px;
-        height: 26px;
+        width: 46px;
+        height: 18px;
         border-radius: 11px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 4px;
         font-family: 'Source Serif Pro', Georgia, serif;
-        font-size: 11px;
+        font-size: 9px;
         font-weight: 400;
         color: #ffffff !important;
         z-index: 5;
@@ -5458,6 +5544,14 @@ echo $OUTPUT->header();
                                 <i class="fa fa-times"></i>
                             </button>
                         </div>
+                        <div class="ws-tabs">
+                            <div class="ws-tab active" data-tab="all" onclick="switchResourceViewTab('all')">All<span
+                                    class="seg-count" id="count-all-tab">0</span></div>
+                            <div class="ws-tab" data-tab="bookmarks" onclick="switchResourceViewTab('bookmarks')">Saved
+                                Resources <span class="seg-count" id="count-bookmarks-tab">0</span></div>
+                            <div class="ws-tab" data-tab="recent" onclick="switchResourceViewTab('recent')">Recently
+                                Viewed <span class="seg-count" id="count-recent-tab">0</span></div>
+                        </div>
 
                         <!-- Folders and Files Filter Select - visible only when at least one section is selected -->
                         <div class="folders-filter-wrapper" id="foldersFilterSection" style="display: none;">
@@ -5496,7 +5590,7 @@ echo $OUTPUT->header();
                                 <div class="resources-grid-container">
                                     <div class="resources-grid-header">
                                         <div>
-                                            <h3 class="resources-grid-title">All Resources</h3>
+                                            <h3 class="resources-grid-title">Resources</h3>
                                             <p class="resources-grid-subtitle">Browse all available teaching resources
                                                 across all levels and themes</p>
                                         </div>
@@ -6437,6 +6531,7 @@ echo $OUTPUT->header();
                                                     // Generate grid card for file
                                                     $res_id = $file->get_id();
                                                     $res_type = 'file';
+                                                    $is_bookmarked = isset($user_bookmarks[$res_type . '_' . $res_id]);
                                                     $meta_key = $res_type . '_' . $res_id;
                                                     $meta = isset($res_meta_map[$meta_key]) ? $res_meta_map[$meta_key] : null;
                                                     $unit_val = $meta ? $meta->unit : '';
@@ -6457,6 +6552,9 @@ echo $OUTPUT->header();
                                                     echo '<div class="resource-card" data-grade="' . $grade_number . '" ';
                                                     echo 'data-unit="' . htmlspecialchars($unit_val, ENT_QUOTES) . '" ';
                                                     echo 'data-lesson="' . htmlspecialchars($lesson_val, ENT_QUOTES) . '" ';
+                                                    echo 'data-res-type="' . $res_type . '" ';
+                                                    echo 'data-res-id="' . $res_id . '" ';
+                                                    echo 'data-bookmarked="' . ($is_bookmarked ? 'true' : 'false') . '" ';
                                                     echo 'data-resource-type="' . htmlspecialchars(theme_remui_kids_teacher_resource_filter_type($file_extension), ENT_QUOTES) . '" ';
                                                     echo 'data-category="' . htmlspecialchars($category, ENT_QUOTES) . '" ';
                                                     echo 'data-category-id="' . htmlspecialchars($category_id, ENT_QUOTES) . '" ';
@@ -6597,8 +6695,10 @@ echo $OUTPUT->header();
                                                     echo '<i class="fa fa-eye"></i> View';
                                                     echo '</button>';
 
-                                                    echo '<button class="resource-card-action-btn bookmark-btn" type="button">';
-                                                    echo '<i class="fa fa-bookmark-o"></i>';
+                                                    $bookmark_active_class = $is_bookmarked ? ' active' : '';
+                                                    $bookmark_icon = $is_bookmarked ? 'fa-bookmark' : 'fa-bookmark-o';
+                                                    echo '<button class="resource-card-action-btn bookmark-btn' . $bookmark_active_class . '" type="button" onclick="event.stopPropagation(); toggleBookmark(this, \'' . $res_type . '\', ' . $res_id . ')">';
+                                                    echo '<i class="fa ' . $bookmark_icon . '"></i>';
                                                     echo '</button>';
 
                                                     // Hide Download button for HTML files
@@ -6724,6 +6824,10 @@ echo $OUTPUT->header();
                                                         $bg_color = '#e1bee7';
                                                     }
 
+                                                    $res_id = $cm->id;
+                                                    $res_type = 'cm';
+                                                    $is_bookmarked = isset($user_bookmarks[$res_type . '_' . $res_id]);
+
                                                     // Generate grid card for resource
                                                     $category_id = isset($resource_item['category_id']) ? $resource_item['category_id'] : 0;
                                                     $direct_category_id = isset($resource_item['direct_category_id']) ? $resource_item['direct_category_id'] : 0;
@@ -6737,6 +6841,9 @@ echo $OUTPUT->header();
                                                         $grade_number = (int) $m[1];
                                                     }
                                                     echo '<div class="resource-card" data-grade="' . $grade_number . '" ';
+                                                    echo 'data-res-type="' . $res_type . '" ';
+                                                    echo 'data-res-id="' . $res_id . '" ';
+                                                    echo 'data-bookmarked="' . ($is_bookmarked ? 'true' : 'false') . '" ';
                                                     $card_resource_filter_type = theme_remui_kids_teacher_resource_filter_type($file_extension);
                                                     echo 'data-resource-type="' . htmlspecialchars($card_resource_filter_type, ENT_QUOTES) . '" ';
                                                     echo 'data-category="' . htmlspecialchars($category, ENT_QUOTES) . '" ';
@@ -6912,8 +7019,10 @@ echo $OUTPUT->header();
                                                     echo '<i class="fa fa-eye"></i> View';
                                                     echo '</button>';
 
-                                                    echo '<button class="resource-card-action-btn bookmark-btn" type="button">';
-                                                    echo '<i class="fa fa-bookmark-o"></i>';
+                                                    $bookmark_active_class = $is_bookmarked ? ' active' : '';
+                                                    $bookmark_icon = $is_bookmarked ? 'fa-bookmark' : 'fa-bookmark-o';
+                                                    echo '<button class="resource-card-action-btn bookmark-btn' . $bookmark_active_class . '" type="button" onclick="event.stopPropagation(); toggleBookmark(this, \'' . $res_type . '\', ' . $res_id . ')">';
+                                                    echo '<i class="fa ' . $bookmark_icon . '"></i>';
                                                     echo '</button>';
 
                                                     // Hide Download button for HTML files
@@ -8103,6 +8212,7 @@ echo $OUTPUT->header();
 
                     // Filter by resource type (Plan, Teach, Assess) - based on section names
                     let currentResourceTypeFilter = 'all';
+                    let currentViewTab = 'all';
                     let selectedGrades = [];
                     let selectedUnitFilter = null;
                     let selectedLessonFilter = null;
@@ -8378,6 +8488,17 @@ echo $OUTPUT->header();
                         let visibleCount = 0;
                         const visibleCards = [];
 
+                        let countAll = 0;
+                        let countBookmarks = 0;
+                        let countRecent = 0;
+
+                        let recentList = [];
+                        try {
+                            recentList = JSON.parse(localStorage.getItem('theme_remui_kids_recent') || '[]');
+                        } catch (e) {
+                            recentList = [];
+                        }
+
                         // Filter cards - mark which cards match filters
                         allCards.forEach(card => {
                             const cardName = card.querySelector('.resource-card-title')?.textContent.toLowerCase() || '';
@@ -8518,8 +8639,32 @@ echo $OUTPUT->header();
                                 }
                             }
 
+                            const matchesAllExceptTabFilter = matchesSearch && matchesResourceType && matchesResourceTypeTab && matchesCurriculum && matchesCategory && matchesSection && matchesFolder && matchesGrade && matchesUnit;
+
+                            if (matchesAllExceptTabFilter) {
+                                countAll++;
+                                if (card.getAttribute('data-bookmarked') === 'true') {
+                                    countBookmarks++;
+                                }
+                                const resType = card.getAttribute('data-res-type');
+                                const resId = parseInt(card.getAttribute('data-res-id'));
+                                if (recentList.some(item => item.type === resType && parseInt(item.id) === resId)) {
+                                    countRecent++;
+                                }
+                            }
+
+                            // Check tab matching
+                            let matchesTab = true;
+                            if (currentViewTab === 'bookmarks') {
+                                matchesTab = (card.getAttribute('data-bookmarked') === 'true');
+                            } else if (currentViewTab === 'recent') {
+                                const resType = card.getAttribute('data-res-type');
+                                const resId = parseInt(card.getAttribute('data-res-id'));
+                                matchesTab = recentList.some(item => item.type === resType && parseInt(item.id) === resId);
+                            }
+
                             // Mark card as filtered (matches all criteria)
-                            const isVisible = matchesSearch && matchesResourceType && matchesResourceTypeTab && matchesCurriculum && matchesCategory && matchesSection && matchesFolder && matchesGrade && matchesUnit;
+                            const isVisible = matchesAllExceptTabFilter && matchesTab;
                             card.setAttribute('data-filtered', isVisible ? 'true' : 'false');
 
                             if (isVisible) {
@@ -8527,6 +8672,19 @@ echo $OUTPUT->header();
                                 visibleCount++;
                             }
                         });
+
+                        // Update tab count badges
+                        const countAllEl = document.getElementById('count-all-tab');
+                        if (countAllEl) countAllEl.textContent = countAll;
+
+                        const countBookmarksEl = document.getElementById('count-bookmarks-tab');
+                        if (countBookmarksEl) countBookmarksEl.textContent = countBookmarks;
+
+                        const countRecentEl = document.getElementById('count-recent-tab');
+                        if (countRecentEl) countRecentEl.textContent = countRecent;
+
+                        // Reorder cards in DOM based on tab
+                        sortCards();
 
                         // Reset to page 1 when filters change
                         currentPage = 1;
@@ -8815,6 +8973,16 @@ echo $OUTPUT->header();
                         // Update sections and folders filters (will hide them if no courses selected)
                         updateSectionsAndFoldersFilters();
 
+                        // Reset active tab back to 'all'
+                        currentViewTab = 'all';
+                        document.querySelectorAll('.ws-tabs .ws-tab').forEach(el => {
+                            if (el.getAttribute('data-tab') === 'all') {
+                                el.classList.add('active');
+                            } else {
+                                el.classList.remove('active');
+                            }
+                        });
+
                         // Reset to page 1
                         currentPage = 1;
                         filterResources();
@@ -8888,6 +9056,11 @@ echo $OUTPUT->header();
                         if (!cardElement) {
                             return;
                         }
+                        const resType = cardElement.dataset.resType;
+                        const resId = cardElement.dataset.resId;
+                        if (resType && resId) {
+                            recordRecentlyViewed(resType, resId);
+                        }
                         const url = cardElement.dataset.fileUrl || '';
                         if (!url) {
                             const fallback = cardElement.dataset.fallbackUrl;
@@ -8911,6 +9084,11 @@ echo $OUTPUT->header();
                     // Open resource (inline preview when possible, otherwise fallback)
                     function openResource(cardElement, cmid, name, modname) {
                         const dataset = (cardElement && cardElement.dataset) ? cardElement.dataset : {};
+                        const resType = dataset.resType;
+                        const resId = dataset.resId;
+                        if (resType && resId) {
+                            recordRecentlyViewed(resType, resId);
+                        }
                         const dataUrl = dataset.fileUrl || '';
                         const dataExt = (dataset.fileExt || '').toLowerCase();
                         const previewUrl = dataset.previewUrl || ''; // Preview URL for PPT files
@@ -9447,33 +9625,146 @@ echo $OUTPUT->header();
                         }
                     <?php endif; ?>
 
+                    function switchResourceViewTab(tab) {
+                        if (currentViewTab === tab) return;
+                        currentViewTab = tab;
+
+                        // Update active class on tab buttons
+                        document.querySelectorAll('.ws-tabs .ws-tab').forEach(el => {
+                            if (el.getAttribute('data-tab') === tab) {
+                                el.classList.add('active');
+                            } else {
+                                el.classList.remove('active');
+                            }
+                        });
+
+                        // Reset pagination
+                        currentPage = 1;
+                        filterResources();
+                    }
+
+                    function sortCards() {
+                        const grid = document.getElementById('resourcesGrid');
+                        if (!grid) return;
+                        const cards = Array.from(grid.querySelectorAll('.resource-card'));
+
+                        let recentList = [];
+                        try {
+                            recentList = JSON.parse(localStorage.getItem('theme_remui_kids_recent') || '[]');
+                        } catch (e) {
+                            recentList = [];
+                        }
+
+                        cards.sort((a, b) => {
+                            if (currentViewTab === 'recent') {
+                                const typeA = a.getAttribute('data-res-type');
+                                const idA = parseInt(a.getAttribute('data-res-id'));
+                                const typeB = b.getAttribute('data-res-type');
+                                const idB = parseInt(b.getAttribute('data-res-id'));
+
+                                const idxA = recentList.findIndex(item => item.type === typeA && parseInt(item.id) === idA);
+                                const idxB = recentList.findIndex(item => item.type === typeB && parseInt(item.id) === idB);
+
+                                if (idxA !== -1 && idxB !== -1) {
+                                    return idxA - idxB;
+                                }
+                                if (idxA !== -1) return -1;
+                                if (idxB !== -1) return 1;
+                            }
+
+                            const origA = parseInt(a.getAttribute('data-original-index') || 0);
+                            const origB = parseInt(b.getAttribute('data-original-index') || 0);
+                            return origA - origB;
+                        });
+
+                        cards.forEach(card => grid.appendChild(card));
+                    }
+
+                    function toggleBookmark(btn, resType, resId) {
+                        const sesskey = M.cfg.sesskey;
+                        const url = M.cfg.wwwroot + '<?php echo theme_remui_kids_teacher_theme_teacher_path(); ?>/ajax/toggle_bookmark.php';
+
+                        const formData = new URLSearchParams();
+                        formData.append('res_type', resType);
+                        formData.append('res_id', resId);
+                        formData.append('sesskey', sesskey);
+
+                        fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: formData.toString()
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    const card = btn.closest('.resource-card');
+                                    if (card) {
+                                        card.setAttribute('data-bookmarked', data.bookmarked ? 'true' : 'false');
+
+                                        if (data.bookmarked) {
+                                            btn.classList.add('active');
+                                            const icon = btn.querySelector('i');
+                                            if (icon) {
+                                                icon.className = 'fa fa-bookmark';
+                                            }
+                                        } else {
+                                            btn.classList.remove('active');
+                                            const icon = btn.querySelector('i');
+                                            if (icon) {
+                                                icon.className = 'fa fa-bookmark-o';
+                                            }
+                                        }
+                                    }
+                                    filterResources();
+                                } else {
+                                    console.error('Failed to toggle bookmark:', data.error || 'Unknown error');
+                                }
+                            })
+                            .catch(err => {
+                                console.error('Error toggling bookmark:', err);
+                            });
+                    }
+
+                    function recordRecentlyViewed(type, id) {
+                        if (!type || !id) return;
+
+                        let recentList = [];
+                        try {
+                            recentList = JSON.parse(localStorage.getItem('theme_remui_kids_recent') || '[]');
+                        } catch (e) {
+                            recentList = [];
+                        }
+
+                        recentList = recentList.filter(item => !(item.type === type && parseInt(item.id) === parseInt(id)));
+
+                        recentList.unshift({
+                            type: type,
+                            id: parseInt(id),
+                            time: Date.now()
+                        });
+
+                        if (recentList.length > 48) {
+                            recentList = recentList.slice(0, 48);
+                        }
+
+                        localStorage.setItem('theme_remui_kids_recent', JSON.stringify(recentList));
+                        filterResources();
+                    }
+
                     // Initialize preview images and pagination on page load
                     document.addEventListener('DOMContentLoaded', function () {
                         // Wait a tiny bit to ensure all cards are in the DOM
                         setTimeout(function () {
                             const allCards = document.querySelectorAll('.resource-card');
-                            if (allCards.length > 0) {
-                                let totalFiltered = 0;
-                                allCards.forEach(card => {
-                                    const filteredAttr = card.getAttribute('data-filtered');
-                                    if (filteredAttr === null) {
-                                        card.setAttribute('data-filtered', 'true');
-                                        totalFiltered++;
-                                    } else if (filteredAttr === 'true') {
-                                        totalFiltered++;
-                                    }
-                                });
-                                if (totalFiltered === 0) {
-                                    totalFiltered = allCards.length;
-                                }
-                                updateResourcesCount(totalFiltered);
-                                applyPagination();
-                                updatePagination(totalFiltered);
 
-                                // Update tier card counts
-                                if (typeof updateResourceTabCounts === 'function') {
-                                    updateResourceTabCounts();
-                                }
+                            // Initialize original index for sorting
+                            allCards.forEach((card, idx) => {
+                                card.setAttribute('data-original-index', idx);
+                            });
+
+                            if (allCards.length > 0) {
+                                // Call filterResources on page load to apply default tab filter ('all') and populate tab counts!
+                                filterResources();
 
                                 // Initialize preview images
                                 initializeResourcePreviews();
