@@ -45,8 +45,8 @@ if (isset($_FILES['preview_image']) && $_FILES['preview_image']['error'] == 0) {
     $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg', 'image/webp'];
     
     if (in_array($file['type'], $allowed_types)) {
-        // Use web-accessible directory within theme
-        $upload_dir = __DIR__ . '/../../pix/resources/';
+        // Use directory inside moodledata to persist across theme code updates/deploys
+        $upload_dir = $CFG->dataroot . '/theme_remui_kids_previews/';
         if (!file_exists($upload_dir)) {
             mkdir($upload_dir, 0777, true);
         }
@@ -56,8 +56,8 @@ if (isset($_FILES['preview_image']) && $_FILES['preview_image']['error'] == 0) {
         $file_path = $upload_dir . $file_name;
         
         if (move_uploaded_file($file['tmp_name'], $file_path)) {
-            // Store web-accessible path
-            $preview_image = $CFG->wwwroot . '/theme/remui_kids/pix/resources/' . $file_name;
+            // Store path served by secure file fetcher PHP script
+            $preview_image = $CFG->wwwroot . '/theme/remui_kids/admin/ajax/get_preview_image.php?file=' . $file_name;
         } else {
             echo json_encode(['success' => false, 'message' => 'Failed to save uploaded file']);
             exit;
@@ -93,12 +93,31 @@ if ($record) {
     $record->unit = $unit;
     $record->lesson = $lesson;
     if ($preview_image) {
-        // Option to delete old preview file if exists
-        if (!empty($record->preview_image) && strpos($record->preview_image, $CFG->wwwroot) === 0) {
-            $old_relative = str_replace($CFG->wwwroot . '/theme/remui_kids/pix/resources/', '', $record->preview_image);
-            $old_file_path = $upload_dir . $old_relative;
-            if (file_exists($old_file_path)) {
-                @unlink($old_file_path);
+        // Delete old preview file if exists
+        if (!empty($record->preview_image)) {
+            $url_parts = parse_url($record->preview_image);
+            $old_filename = '';
+            if (isset($url_parts['query'])) {
+                parse_str($url_parts['query'], $query_params);
+                if (isset($query_params['file'])) {
+                    $old_filename = basename($query_params['file']);
+                }
+            }
+            if (!$old_filename) {
+                $old_filename = basename($record->preview_image);
+            }
+            
+            if ($old_filename) {
+                // Delete from new location inside moodledata
+                $old_new_path = $CFG->dataroot . '/theme_remui_kids_previews/' . $old_filename;
+                if (file_exists($old_new_path)) {
+                    @unlink($old_new_path);
+                }
+                // Also delete from legacy location inside theme
+                $old_legacy_path = __DIR__ . '/../../pix/resources/' . $old_filename;
+                if (file_exists($old_legacy_path)) {
+                    @unlink($old_legacy_path);
+                }
             }
         }
         $record->preview_image = $preview_image;
