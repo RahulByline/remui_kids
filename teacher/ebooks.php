@@ -215,10 +215,10 @@ echo $OUTPUT->header();
     <div class="row">
         <div class="col-12">
             <!-- Include teacher sidebar -->
-            <?php 
-                // Initialize variables needed by sidebar.php for ebooks
-                $selected_regions = []; 
-                include(__DIR__ . '/includes/sidebar.php'); 
+            <?php
+            // Initialize variables needed by sidebar.php for ebooks
+            $selected_regions = [];
+            include(__DIR__ . '/includes/sidebar.php');
             ?>
 
             <div class="main-content">
@@ -1279,7 +1279,6 @@ echo $OUTPUT->header();
                 padding: 20px;
                 background: white;
                 border-radius: 10px;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             }
 
             .filter-title {

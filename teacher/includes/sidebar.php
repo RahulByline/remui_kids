@@ -350,9 +350,6 @@ if (isloggedin() && !isguestuser() && !is_siteadmin($USER)) {
                             <div class="curriculum-checkboxes-container">
                                 <?php foreach ($available_regions as $reg): ?>
                                 <label class="filter-checkbox-wrapper <?php echo (in_array($reg, $selected_regions)) ? 'checked' : ''; ?>" id="label_curr_<?php echo strtolower($reg); ?>">
-                                    <span class="custom-checkbox">
-                                        <i class="fa fa-check"></i>
-                                    </span>
                                     <input type="checkbox" class="sidebar-curr-checkbox" value="<?php echo htmlspecialchars($reg); ?>" <?php echo (in_array($reg, $selected_regions)) ? 'checked' : ''; ?>
                                         onchange="handleSidebarEbookFilterChange(this)">
                                     <span class="checkbox-label"><?php echo htmlspecialchars($reg); ?></span>
@@ -390,9 +387,6 @@ if (isloggedin() && !isguestuser() && !is_siteadmin($USER)) {
                             <div class="ebooks-booktype-list" style="display: flex; flex-direction: column; gap: 8px;">
                                 <?php foreach ($available_book_types as $btype): ?>
                                     <label class="filter-checkbox-wrapper booktype-row-item">
-                                        <span class="custom-checkbox">
-                                            <i class="fa fa-check"></i>
-                                        </span>
                                         <input type="checkbox" class="sidebar-ebook-type-checkbox" value="<?php echo htmlspecialchars($btype); ?>" onchange="handleSidebarEbookFilterChange(this)">
                                         <span class="checkbox-label"><?php echo htmlspecialchars($btype); ?></span>
                                     </label>

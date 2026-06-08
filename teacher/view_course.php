@@ -2526,8 +2526,6 @@ echo $OUTPUT->header();
         background: white;
         border-radius: 12px;
         padding: 24px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-        border: 1px solid #e9ecef;
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -2595,7 +2593,6 @@ echo $OUTPUT->header();
     .resource-card:hover {
         transform: translateY(-6px);
         box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
-        border-color: #94a3b8;
     }
 
     .resource-card-image-container {
@@ -2931,7 +2928,7 @@ echo $OUTPUT->header();
         height: 26px;
         padding: 0 12px;
         border-radius: 11px;
-        font-family: 'Source Serif Pro', Georgia, serif;
+        font-family: 'Inter', sans-serif;
         font-size: 11px;
         font-weight: 400;
         line-height: 14px;
@@ -2940,20 +2937,14 @@ echo $OUTPUT->header();
 
     /* Grade tag */
     .resource-card-tag-course {
-        background: #EEF2FF;
-        color: #5061D4;
-    }
-
-    /* Section tag */
-    .resource-card-tag-section {
-        background: #F3E8FF;
-        color: #A055F3;
+        background: #fff9e0;
+        color: #c58329;
     }
 
     /* Folder tag */
     .resource-card-tag-folder {
-        background: #FCE7F3;
-        color: #F06EA4;
+        background: #fff0e0;
+        color: #ff8702;
     }
 
     /* Unit tag */
@@ -2977,7 +2968,7 @@ echo $OUTPUT->header();
         border-radius: 9px;
         background: #EBEBEB;
         color: #334155;
-        font-family: 'Source Serif Pro', Georgia, serif;
+        font-family: 'Inter', sans-serif;
         font-size: 14px;
         font-weight: 400;
         cursor: pointer;
@@ -3807,7 +3798,7 @@ echo $OUTPUT->header();
 
     .resource-card-action-btn {
         padding: 8px 12px;
-        font-size: 12px;
+        font-size: 13px;
     }
 
     .folder-description-modal {
@@ -6700,9 +6691,6 @@ echo $OUTPUT->header();
                                                     } else if ($course_name) {
                                                         echo '<span class="resource-card-tag resource-card-tag-course">' . html_entity_decode($course_name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</span>';
                                                     }
-                                                    if ($section_name) {
-                                                        echo '<span class="resource-card-tag resource-card-tag-section">' . html_entity_decode($section_name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</span>';
-                                                    }
                                                     if ($folder_name) {
                                                         echo '<span class="resource-card-tag resource-card-tag-folder">' . html_entity_decode($folder_name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</span>';
                                                     }
@@ -7023,9 +7011,6 @@ echo $OUTPUT->header();
                                                     } else if ($course_name) {
                                                         echo '<span class="resource-card-tag resource-card-tag-course">' . html_entity_decode($course_name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</span>';
                                                     }
-                                                    if ($section_name) {
-                                                        echo '<span class="resource-card-tag resource-card-tag-section">' . html_entity_decode($section_name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</span>';
-                                                    }
                                                     if ($folder_name) {
                                                         echo '<span class="resource-card-tag resource-card-tag-folder">' . html_entity_decode($folder_name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</span>';
                                                     }
@@ -7133,6 +7118,15 @@ echo $OUTPUT->header();
                     if (typeof pdfjsLib !== 'undefined') {
                         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
                     }
+                    
+                    // Move modals outside of the main content wrapper to avoid z-index stacking issues with the fixed sidebar
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const modals = ['pptPlayerModal', 'folderDescriptionModal'];
+                        modals.forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el) document.body.appendChild(el);
+                        });
+                    });
                 </script>
                 <script
                     src="<?php echo $CFG->wwwroot . theme_remui_kids_teacher_theme_teacher_path(); ?>/tier_cards_categories.js"></script>
