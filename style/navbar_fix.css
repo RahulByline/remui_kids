@@ -248,7 +248,7 @@ body.has-student-sidebar.has-enhanced-sidebar:not(.path-course-view) .dashboard-
 }
 
 /* SIDEBAR FIX - Prevent cutting from top - NOT on course pages */
-,
+
 body.has-student-sidebar.has-enhanced-sidebar:not(.path-course-view) .student-sidebar,
 body.has-enhanced-sidebar.student-sidebar:not(.path-course-view) .student-sidebar {
     margin-top: 80px !important;
@@ -358,6 +358,7 @@ body.path-mod-url #page-footer .footer-content {
     .navbar-nav.teacher-top-nav .nav-link span {
         display: none !important;
     }
+
     .navbar-nav.teacher-top-nav .nav-link {
         padding: 0.5rem !important;
     }
@@ -400,7 +401,7 @@ body.path-mod-url #page-footer .footer-content {
 .teacher-sidebar .filter-section {
     padding: 0 20px 20px 20px !important;
     border-bottom: 1px solid #f1f5f9 !important;
-    margin-bottom: 16px !important;
+    margin-bottom: 9px !important;
 }
 
 .teacher-sidebar .filter-section-title {
@@ -426,76 +427,6 @@ body.path-mod-url #page-footer .footer-content {
     transform: rotate(-90deg) !important;
 }
 
-.teacher-sidebar .curriculum-checkboxes-container {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-    background: #f8fafc !important;
-    border-radius: 8px !important;
-    padding: 12px !important;
-}
-
-.teacher-sidebar .filter-checkbox-wrapper {
-    display: flex !important;
-    align-items: center !important;
-    gap: 10px !important;
-    cursor: pointer !important;
-    margin: 0 !important;
-    padding: 6px 8px !important;
-    border-radius: 6px !important;
-    transition: all 0.2s ease !important;
-}
-
-.teacher-sidebar .filter-checkbox-wrapper:hover {
-    background: #f1f5f9 !important;
-}
-
-.teacher-sidebar .filter-checkbox-wrapper input[type="checkbox"] {
-    display: none !important;
-}
-
-.teacher-sidebar .filter-checkbox-wrapper .custom-checkbox {
-    width: 18px !important;
-    height: 18px !important;
-    border: 1.5px solid #cbd5e1 !important;
-    border-radius: 4px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background: #fff !important;
-    transition: all 0.2s ease !important;
-}
-
-.teacher-sidebar .filter-checkbox-wrapper .custom-checkbox i {
-    font-size: 10px !important;
-    color: #fff !important;
-    display: none !important;
-}
-
-.teacher-sidebar .filter-checkbox-wrapper.checked .custom-checkbox {
-    background: #0f172a !important;
-    border-color: #0f172a !important;
-}
-
-.teacher-sidebar .filter-checkbox-wrapper.checked .custom-checkbox i {
-    display: block !important;
-}
-
-.teacher-sidebar .filter-checkbox-wrapper.checked {
-    background: #f1f5f9 !important;
-}
-
-.teacher-sidebar .filter-checkbox-wrapper .checkbox-label {
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    color: #334155 !important;
-}
-
-.teacher-sidebar .filter-checkbox-wrapper.checked .checkbox-label {
-    font-weight: 600 !important;
-    color: #0f172a !important;
-}
-
 .teacher-sidebar .filter-checkbox-list {
     list-style: none !important;
     padding: 0 !important;
@@ -513,7 +444,7 @@ body.path-mod-url #page-footer .footer-content {
     align-items: center !important;
     gap: 10px !important;
     cursor: pointer !important;
-    padding: 8px 4px !important;
+    padding: 4px !important;
     border-radius: 6px !important;
     transition: background 0.15s ease !important;
     font-size: 14px !important;
@@ -533,4 +464,229 @@ body.path-mod-url #page-footer .footer-content {
 /* Adjust padding inside sidebar content when rendering filters */
 .teacher-sidebar.has-filters .sidebar-content {
     padding: 5.5rem 0 2rem 0 !important;
+}
+
+/* Grade Filter Pills Styles */
+.teacher-sidebar .grade-filter-section {
+    margin-bottom: 22px !important;
+}
+
+.teacher-sidebar .grade-pills {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    margin-top: 8px !important;
+    padding: 0 !important;
+}
+
+.teacher-sidebar .grade-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 44px !important;
+    height: 38px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    font-family: 'DM Mono', monospace !important;
+    text-align: center !important;
+    cursor: pointer !important;
+    border: 1.5px solid #cbd5e1 !important;
+    background: transparent !important;
+    color: #64748b !important;
+    transition: all 0.15s ease !important;
+    user-select: none !important;
+}
+
+.teacher-sidebar .grade-pill:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+.teacher-sidebar .grade-pill.on {
+    background: #ede9fe !important;
+    border-color: #c084fc !important;
+    color: #7c3aed !important;
+    font-weight: 700 !important;
+}
+
+/* Segmented Control / Toggle Button for Resource Tabs */
+.tier-cards-container {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+}
+
+.tier-cards-container.second-level-visible {
+    min-height: auto !important;
+    padding: 0 !important;
+    margin-top: 15px !important;
+    margin-bottom: 25px !important;
+}
+
+.category-toggle-control {
+    display: flex !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 14px !important;
+    padding: 6px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02) !important;
+}
+
+.category-toggle-item {
+    flex: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    padding: 14px 10px !important;
+    cursor: pointer !important;
+    border-radius: 10px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: #64748b !important;
+    transition: all 0.25s ease !important;
+    user-select: none !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+.category-toggle-item i {
+    font-size: 18px !important;
+    color: #94a3b8 !important;
+    transition: color 0.25s ease !important;
+}
+
+.category-toggle-count {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    font-family: 'DM Mono', monospace !important;
+    padding: 3px 8px !important;
+    border-radius: 20px !important;
+    background: rgba(148, 163, 184, 0.1) !important;
+    color: #64748b !important;
+    transition: all 0.25s ease !important;
+}
+
+/* Hover States - mockup specific colors */
+.category-toggle-item[data-tab="all"]:hover:not(.active) {
+    color: #a61d4c !important;
+    background: rgba(194, 37, 92, 0.04) !important;
+}
+
+.category-toggle-item[data-tab="all"]:hover:not(.active) i {
+    color: #a61d4c !important;
+}
+
+.category-toggle-item[data-tab="planning"]:hover:not(.active) {
+    color: #2b4acb !important;
+    background: rgba(59, 91, 219, 0.04) !important;
+}
+
+.category-toggle-item[data-tab="planning"]:hover:not(.active) i {
+    color: #2b4acb !important;
+}
+
+.category-toggle-item[data-tab="resources"]:hover:not(.active) {
+    color: #066d4f !important;
+    background: rgba(8, 127, 91, 0.04) !important;
+}
+
+.category-toggle-item[data-tab="resources"]:hover:not(.active) i {
+    color: #066d4f !important;
+}
+
+.category-toggle-item[data-tab="assessments"]:hover:not(.active) {
+    color: #b93a0a !important;
+    background: rgba(194, 65, 12, 0.04) !important;
+}
+
+.category-toggle-item[data-tab="assessments"]:hover:not(.active) i {
+    color: #b93a0a !important;
+}
+
+/* Active State - white background and subtle border */
+.category-toggle-item.active {
+    background: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Active State Mockup-Specific Accent Colors */
+
+/* All Resources (Active) */
+.category-toggle-item[data-tab="all"].active {
+    color: #a61d4c !important;
+}
+
+.category-toggle-item[data-tab="all"].active i {
+    color: #a61d4c !important;
+}
+
+.category-toggle-item[data-tab="all"].active .category-toggle-count {
+    background: rgba(194, 37, 92, 0.12) !important;
+    color: #a61d4c !important;
+}
+
+/* Plan (Active) */
+.category-toggle-item[data-tab="planning"].active {
+    color: #2b4acb !important;
+}
+
+.category-toggle-item[data-tab="planning"].active i {
+    color: #2b4acb !important;
+}
+
+.category-toggle-item[data-tab="planning"].active .category-toggle-count {
+    background: rgba(59, 91, 219, 0.12) !important;
+    color: #2b4acb !important;
+}
+
+/* Teach (Active) */
+.category-toggle-item[data-tab="resources"].active {
+    color: #066d4f !important;
+}
+
+.category-toggle-item[data-tab="resources"].active i {
+    color: #066d4f !important;
+}
+
+.category-toggle-item[data-tab="resources"].active .category-toggle-count {
+    background: rgba(8, 127, 91, 0.12) !important;
+    color: #066d4f !important;
+}
+
+/* Assess (Active) */
+.category-toggle-item[data-tab="assessments"].active {
+    color: #b93a0a !important;
+}
+
+.category-toggle-item[data-tab="assessments"].active i {
+    color: #b93a0a !important;
+}
+
+.category-toggle-item[data-tab="assessments"].active .category-toggle-count {
+    background: rgba(194, 65, 12, 0.12) !important;
+    color: #b93a0a !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .category-toggle-control {
+        flex-direction: column !important;
+        border-radius: 16px !important;
+        gap: 4px !important;
+    }
+
+    .category-toggle-item {
+        width: 100% !important;
+        padding: 10px !important;
+        justify-content: space-between !important;
+    }
 }

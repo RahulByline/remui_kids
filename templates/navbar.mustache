@@ -106,6 +106,7 @@
                 </div>
             {{/is_editing_teacher}}
             {{^is_editing_teacher}}
+                {{^is_siteadmin}}
                 <div class="navbar-nav mx-2 d-flex align-items-center">
                     <a href="{{#dashboardurl}}{{{dashboardurl}}}{{/dashboardurl}}{{^dashboardurl}}{{#dashboard_url}}{{{dashboard_url}}}{{/dashboard_url}}{{^dashboard_url}}//my/{{/dashboard_url}}{{/dashboardurl}}" 
                        class="nav-link dashboard-nav-link d-flex align-items-center" 
@@ -120,6 +121,7 @@
                         <span class="d-none d-lg-inline">My Courses</span>
                     </a>
                 </div>
+                {{/is_siteadmin}}
             {{/is_editing_teacher}}
         {{/isloggedin}}
 

@@ -99,10 +99,11 @@ class core_renderer extends \theme_remui\output\core_renderer {
      * @return array The updated context
      */
     protected function inject_teacher_navbar_context($context) {
-        global $PAGE;
+        global $PAGE, $USER;
         
         $is_editing_teacher = $this->is_user_editing_teacher();
         $context['is_editing_teacher'] = $is_editing_teacher;
+        $context['is_siteadmin'] = is_siteadmin($USER);
         
         if ($is_editing_teacher) {
             // Set active states based on current URL path

@@ -36,8 +36,9 @@ require_once(__DIR__ . '/includes/teacher_layout_styles.php');
 ?>
 <style>
     .main-content {
-        margin-left: 180px !important;
+        margin-left: 0px !important;
         margin-top: 90px !important;
+        width: 100% !important;
     }
     .teacher-page-header {
         padding: 15px 10px;
@@ -52,7 +53,6 @@ require_once(__DIR__ . '/includes/teacher_layout_styles.php');
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <?php include(__DIR__ . '/includes/sidebar.php'); ?>
 
             <div class="main-content">
                 <div class="teacher-page-header">

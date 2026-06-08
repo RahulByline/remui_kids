@@ -390,6 +390,37 @@ if (empty($teacher_courses)) {
 
 // Page setup - use system context since we're showing resources from all courses
 $PAGE->set_context($context);
+
+// Fetch all metadata mapping
+$res_meta_map = [];
+try {
+    $metadata_records = $DB->get_records('theme_remui_kids_res_meta');
+    if (!empty($metadata_records)) {
+        foreach ($metadata_records as $rec) {
+            $res_meta_map[$rec->res_type . '_' . $rec->res_id] = $rec;
+        }
+    }
+} catch (dml_exception $e) {
+    // If table doesn't exist, create it dynamically
+    $dbman = $DB->get_manager();
+    $res_meta_table = new xmldb_table('theme_remui_kids_res_meta');
+    if (!$dbman->table_exists($res_meta_table)) {
+        $res_meta_table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $res_meta_table->add_field('res_type', XMLDB_TYPE_CHAR, '10', null, XMLDB_NOTNULL, null, null);
+        $res_meta_table->add_field('res_id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $res_meta_table->add_field('unit', XMLDB_TYPE_CHAR, '50', null, null, null, null);
+        $res_meta_table->add_field('lesson', XMLDB_TYPE_CHAR, '50', null, null, null, null);
+        $res_meta_table->add_field('preview_image', XMLDB_TYPE_CHAR, '255', null, null, null, null);
+        $res_meta_table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $res_meta_table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $res_meta_table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $res_meta_table->add_key('res_type_id', XMLDB_KEY_UNIQUE, ['res_type', 'res_id']);
+        $dbman->create_table($res_meta_table);
+    }
+}
+
+// Grade numbers from courses with actual resources — will be rebuilt after $all_resources is populated
+$teacher_grade_numbers = [];
 $PAGE->set_url(theme_remui_kids_teacher_theme_teacher_path() . '/teacher_resources.php');
 $PAGE->set_pagelayout('base'); // Use base layout like competencies.php
 $PAGE->set_title('Teacher Resources');
@@ -718,6 +749,23 @@ foreach ($all_resources as $resource_item) {
         $courses_with_resources[$resource_item['course']->id] = true;
     }
 }
+
+// Rebuild teacher_grade_numbers from ONLY courses that have actual resources
+$teacher_grade_numbers = [];
+foreach ($all_resources as $resource_item) {
+    if (!isset($resource_item['course']))
+        continue;
+    $course_name = ($resource_item['course']->fullname ?? '') . ' ' . ($resource_item['course']->shortname ?? '');
+    if (preg_match_all('/\bGrade\s*(\d{1,2})\b/i', $course_name, $gm)) {
+        foreach ($gm[1] as $g) {
+            $g = (int) $g;
+            if ($g >= 1 && $g <= 12 && !in_array($g, $teacher_grade_numbers, true)) {
+                $teacher_grade_numbers[] = $g;
+            }
+        }
+    }
+}
+sort($teacher_grade_numbers);
 
 // Get all courses for main categories where user is a teacher (including all nested subcategories)
 // Build a map of all categories that have teacher courses
@@ -1213,7 +1261,6 @@ echo $OUTPUT->header();
         justify-content: space-between;
         align-items: flex-start;
         gap: 24px;
-        margin-bottom: 24px;
     }
 
     .dashboard-hero-title-section {
@@ -1866,6 +1913,116 @@ echo $OUTPUT->header();
         background: #6c757d;
     }
 
+    /* Collapsible Unit & Lesson Accordion */
+    .unit-lesson-accordion {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 8px 0;
+    }
+
+    .unit-accordion-item {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .unit-accordion-item.active {
+        border-color: #2563eb;
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.05);
+    }
+
+    .unit-accordion-header {
+        padding: 5px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        user-select: none;
+        background: #f8fafc;
+        transition: background 0.2s ease;
+    }
+
+    .unit-accordion-header:hover {
+        background: #f1f5f9;
+    }
+
+    .unit-accordion-item.active .unit-accordion-header {
+        background: #f0f7ff;
+        border-bottom: 1px solid #cbd5e1;
+    }
+
+    .unit-title-text {
+        font-weight: 600;
+        font-size: 14px;
+        color: #1e293b;
+    }
+
+    .lesson-count-text {
+        font-size: 12px;
+        color: #94a3b8;
+        margin-left: auto;
+        margin-right: 8px;
+    }
+
+    .unit-accordion-header i.toggle-arrow {
+        font-size: 12px;
+        color: #64748b;
+        transition: transform 0.2s ease;
+    }
+
+    .unit-accordion-item.active .unit-accordion-header i.toggle-arrow {
+        transform: rotate(180deg);
+        color: #2563eb;
+    }
+
+    .unit-accordion-body {
+        display: none;
+        padding: 6px;
+        background: #ffffff;
+    }
+
+    .unit-accordion-item.active .unit-accordion-body {
+        display: block;
+    }
+
+    .lesson-buttons-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .lesson-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #475569;
+        font-size: 10px;
+        font-weight: 400;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .lesson-btn:hover {
+        border-color: #2563eb;
+        color: #2563eb;
+        background: #f0f7ff;
+    }
+
+    .lesson-btn.active {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #ffffff;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+    }
+
     /* Custom scrollbar for filter sidebar */
     .resources-sidebar::-webkit-scrollbar,
     .filter-checkbox-list::-webkit-scrollbar {
@@ -2287,7 +2444,6 @@ echo $OUTPUT->header();
         border: 1px solid #e9ecef;
         display: flex;
         flex-direction: column;
-        max-height: calc(100vh - 200px);
         overflow: hidden;
     }
 
@@ -2328,40 +2484,44 @@ echo $OUTPUT->header();
 
     .resources-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 20px;
+        grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+        gap: 24px;
         padding: 0;
     }
 
     /* Resource Card - New Design */
     .resource-card {
         background: white;
-        border: 1px solid #e9ecef;
-        border-radius: 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 24px;
         overflow: hidden;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
         display: flex;
         flex-direction: column;
         position: relative;
+        min-height: 340px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .resource-card:hover {
-        border-color: #5b9bd5;
-        box-shadow: 0 8px 16px rgba(91, 155, 213, 0.2);
-        transform: translateY(-4px);
+        transform: translateY(-6px);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+        border-color: #94a3b8;
     }
 
     .resource-card-image-container {
         width: 100%;
-        height: 180px;
+        height: 195px;
         position: relative;
         overflow: hidden;
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: #f8fafc;
         display: flex;
         align-items: center;
         justify-content: center;
+        border-radius: 23px 23px 0 0;
     }
 
     .resource-card-image {
@@ -2376,7 +2536,6 @@ echo $OUTPUT->header();
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     }
 
     .resource-card-image-placeholder i {
@@ -2496,55 +2655,121 @@ echo $OUTPUT->header();
         background: transparent;
     }
 
+    /* Format Badge overlay (top-right of image container) */
     .resource-card-format-tag {
-        display: flex;
+        position: absolute;
+        top: 11px;
+        right: 12px;
+        width: 66px;
+        height: 26px;
+        border-radius: 11px;
+        display: inline-flex;
         align-items: center;
-        gap: 8px;
-        padding: 12px 16px;
-        background: #ffffff;
-        border-bottom: 1px solid #e2e8f0;
-        font-size: 13px;
-        font-weight: 600;
-        color: #475569;
+        justify-content: center;
+        gap: 4px;
+        font-family: 'Source Serif Pro', Georgia, serif;
+        font-size: 11px;
+        font-weight: 400;
+        color: #ffffff !important;
+        z-index: 5;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        border: none;
     }
 
     .resource-card-format-tag i {
-        font-size: 16px;
-        color: #64748b;
+        font-size: 10px;
+        color: #ffffff !important;
     }
 
-    /* Format tag icon colors */
-    .resource-card-format-tag[data-type="pdf"] i {
-        color: #dc3545;
+    /* Type-specific Format Badge backgrounds */
+    .resource-card-format-tag[data-type="pdf"] {
+        background: #FA8989 !important;
     }
 
-    .resource-card-format-tag[data-type="pptx"] i,
-    .resource-card-format-tag[data-type="ppt"] i {
-        color: #fd7e14;
+    .resource-card-format-tag[data-type="pptx"],
+    .resource-card-format-tag[data-type="ppt"] {
+        background: #FDBE89 !important;
+    }
+
+    .resource-card-format-tag[data-type="docx"],
+    .resource-card-format-tag[data-type="doc"] {
+        background: #89C2FA !important;
+    }
+
+    .resource-card-format-tag[data-type="xlsx"],
+    .resource-card-format-tag[data-type="xls"],
+    .resource-card-format-tag[data-type="csv"] {
+        background: #89FAA8 !important;
+        color: #1e3a24 !important;
+        /* excel contrast text */
     }
 
     .resource-card-format-tag[data-type="xlsx"] i,
     .resource-card-format-tag[data-type="xls"] i,
     .resource-card-format-tag[data-type="csv"] i {
-        color: #28a745;
+        color: #1e3a24 !important;
     }
 
-    .resource-card-format-tag[data-type="docx"] i,
-    .resource-card-format-tag[data-type="doc"] i {
-        color: #007bff;
+    .resource-card-format-tag[data-type="html"],
+    .resource-card-format-tag[data-type="videos"] {
+        background: #FAA8D9 !important;
     }
 
-    .resource-card-format-tag[data-type="html"] i,
-    .resource-card-format-tag[data-type="videos"] i {
-        color: #ec4899;
+    .resource-card-format-tag[data-type="images"] {
+        background: #CBA8FA !important;
     }
 
-    .resource-card-format-tag[data-type="images"] i {
-        color: #6f42c1;
+    .resource-card-format-tag[data-type="url"] {
+        background: #89E8FA !important;
     }
 
-    .resource-card-format-tag[data-type="url"] i {
-        color: #0ea5e9;
+    .resource-card-format-tag[data-type="scorm"] {
+        background: #D3A8FA !important;
+    }
+
+    /* Colored Divider Line */
+    .resource-card-divider-line {
+        width: 60%;
+        height: 5px;
+        background: #94a3b8;
+        /* fallback grey */
+    }
+
+    .resource-card-divider-line[data-type="pdf"] {
+        background: #FF5151;
+    }
+
+    .resource-card-divider-line[data-type="pptx"],
+    .resource-card-divider-line[data-type="ppt"] {
+        background: #FD7E14;
+    }
+
+    .resource-card-divider-line[data-type="docx"],
+    .resource-card-divider-line[data-type="doc"] {
+        background: #007BFF;
+    }
+
+    .resource-card-divider-line[data-type="xlsx"],
+    .resource-card-divider-line[data-type="xls"],
+    .resource-card-divider-line[data-type="csv"] {
+        background: #28A745;
+    }
+
+    .resource-card-divider-line[data-type="html"],
+    .resource-card-divider-line[data-type="videos"] {
+        background: #E83E89;
+    }
+
+    .resource-card-divider-line[data-type="images"] {
+        background: #6F42C1;
+    }
+
+    .resource-card-divider-line[data-type="url"] {
+        background: #20C997;
+    }
+
+    .resource-card-divider-line[data-type="scorm"] {
+        background: #9C27B0;
     }
 
     .resource-card-favorite {
@@ -2585,14 +2810,21 @@ echo $OUTPUT->header();
         flex: 1;
         display: flex;
         flex-direction: column;
+        justify-content: space-between;
+        min-height: 0;
+        box-sizing: border-box;
     }
 
     .resource-card-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: #1e293b;
-        margin: 0 0 12px 0;
-        line-height: 1.5;
+        font-family: 'Inter', sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        color: #000000;
+        margin: 0 0 10px 0;
+        line-height: 24px;
+        min-height: 48px;
+        /* at least 2 lines reserved */
+        max-height: 48px;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
@@ -2602,174 +2834,98 @@ echo $OUTPUT->header();
     .resource-card-tags {
         display: flex;
         flex-wrap: wrap;
-        gap: 4px;
+        gap: 6px;
         margin-bottom: 12px;
     }
 
     .resource-card-tag {
-        font-size: 10px;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-weight: 500;
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 26px;
+        padding: 0 12px;
+        border-radius: 11px;
+        font-family: 'Source Serif Pro', Georgia, serif;
+        font-size: 11px;
+        font-weight: 400;
+        line-height: 14px;
+        white-space: nowrap;
     }
 
-    /* Course tag - light blue/purple */
+    /* Grade tag */
     .resource-card-tag-course {
-        color: #6366f1;
-        background: #eef2ff;
+        background: #EEF2FF;
+        color: #5061D4;
     }
 
-    /* Section tag - light purple/pink */
+    /* Section tag */
     .resource-card-tag-section {
-        color: #a855f7;
-        background: #f3e8ff;
+        background: #F3E8FF;
+        color: #A055F3;
     }
 
-    /* Folder tag - light pink */
+    /* Folder tag */
     .resource-card-tag-folder {
-        color: #ec4899;
-        background: #fce7f3;
+        background: #FCE7F3;
+        color: #F06EA4;
+    }
+
+    /* Unit tag */
+    .resource-card-tag-unit {
+        background: #E8F5E9;
+        color: #2E7D32;
     }
 
     .resource-card-actions {
         display: flex;
         gap: 8px;
         margin-top: auto;
+        align-items: center;
+        width: 100%;
     }
 
+    /* Soft grey action buttons */
     .resource-card-action-btn {
-        flex: 1;
-        padding: 10px 16px;
+        height: 34px;
         border: none;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 600;
+        border-radius: 9px;
+        background: #EBEBEB;
+        color: #334155;
+        font-family: 'Source Serif Pro', Georgia, serif;
+        font-size: 14px;
+        font-weight: 400;
         cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 6px;
+        transition: background 0.2s ease, transform 0.1s ease;
+    }
+
+    .resource-card-action-btn:hover {
+        background: #e0e0e0;
+    }
+
+    .resource-card-action-btn:active {
+        transform: scale(0.98);
     }
 
     .resource-card-action-btn.view-btn {
-        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-        color: white;
+        flex: 1;
+        padding: 0 16px;
     }
 
-    .resource-card-action-btn.view-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
-
-    /* PDF - Red */
-    .resource-card-action-btn.view-btn[data-file-type="pdf"] {
-        background: linear-gradient(135deg, #dc3545 0%, rgb(224, 57, 74) 100%);
-    }
-
-    .resource-card-action-btn.view-btn[data-file-type="pdf"]:hover {
-        background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
-        box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
-    }
-
-    /* PPT/PPTX - Orange */
-    .resource-card-action-btn.view-btn[data-file-type="ppt"],
-    .resource-card-action-btn.view-btn[data-file-type="pptx"] {
-        background: linear-gradient(135deg, #fd7e14 0%, #e8650e 100%);
-    }
-
-    .resource-card-action-btn.view-btn[data-file-type="ppt"]:hover,
-    .resource-card-action-btn.view-btn[data-file-type="pptx"]:hover {
-        background: linear-gradient(135deg, #e8650e 0%, #d4550c 100%);
-        box-shadow: 0 4px 8px rgba(253, 126, 20, 0.3);
-    }
-
-    /* Excel/CSV - Green */
-    .resource-card-action-btn.view-btn[data-file-type="xls"],
-    .resource-card-action-btn.view-btn[data-file-type="xlsx"],
-    .resource-card-action-btn.view-btn[data-file-type="csv"] {
-        background: linear-gradient(135deg, #28a745 0%, #218838 100%);
-    }
-
-    .resource-card-action-btn.view-btn[data-file-type="xls"]:hover,
-    .resource-card-action-btn.view-btn[data-file-type="xlsx"]:hover,
-    .resource-card-action-btn.view-btn[data-file-type="csv"]:hover {
-        background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
-        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
-    }
-
-    /* Word - Blue */
-    .resource-card-action-btn.view-btn[data-file-type="doc"],
-    .resource-card-action-btn.view-btn[data-file-type="docx"] {
-        background: linear-gradient(135deg, #007bff 0%, #0069d9 100%);
-    }
-
-    .resource-card-action-btn.view-btn[data-file-type="doc"]:hover,
-    .resource-card-action-btn.view-btn[data-file-type="docx"]:hover {
-        background: linear-gradient(135deg, #0069d9 0%, #0062cc 100%);
-        box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
-    }
-
-    /* HTML/Videos - Pink */
-    .resource-card-action-btn.view-btn[data-file-type="html"],
-    .resource-card-action-btn.view-btn[data-file-type="htm"],
-    .resource-card-action-btn.view-btn[data-file-type="videos"] {
-        background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
-    }
-
-    .resource-card-action-btn.view-btn[data-file-type="html"]:hover,
-    .resource-card-action-btn.view-btn[data-file-type="htm"]:hover,
-    .resource-card-action-btn.view-btn[data-file-type="videos"]:hover {
-        background: linear-gradient(135deg, #db2777 0%, #c21d6f 100%);
-        box-shadow: 0 4px 8px rgba(236, 72, 153, 0.3);
-    }
-
-    /* Images - Purple */
-    .resource-card-action-btn.view-btn[data-file-type="images"],
-    .resource-card-action-btn.view-btn[data-file-type="png"],
-    .resource-card-action-btn.view-btn[data-file-type="jpg"],
-    .resource-card-action-btn.view-btn[data-file-type="jpeg"],
-    .resource-card-action-btn.view-btn[data-file-type="gif"],
-    .resource-card-action-btn.view-btn[data-file-type="svg"],
-    .resource-card-action-btn.view-btn[data-file-type="bmp"],
-    .resource-card-action-btn.view-btn[data-file-type="webp"] {
-        background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
-    }
-
-    .resource-card-action-btn.view-btn[data-file-type="images"]:hover,
-    .resource-card-action-btn.view-btn[data-file-type="png"]:hover,
-    .resource-card-action-btn.view-btn[data-file-type="jpg"]:hover,
-    .resource-card-action-btn.view-btn[data-file-type="jpeg"]:hover,
-    .resource-card-action-btn.view-btn[data-file-type="gif"]:hover,
-    .resource-card-action-btn.view-btn[data-file-type="svg"]:hover,
-    .resource-card-action-btn.view-btn[data-file-type="bmp"]:hover,
-    .resource-card-action-btn.view-btn[data-file-type="webp"]:hover {
-        background: linear-gradient(135deg, #5a32a3 0%, #4c2a8f 100%);
-        box-shadow: 0 4px 8px rgba(111, 66, 193, 0.3);
-    }
-
-    /* URL - Sky Blue */
-    .resource-card-action-btn.view-btn[data-file-type="url"] {
-        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-    }
-
-    .resource-card-action-btn.view-btn[data-file-type="url"]:hover {
-        background: linear-gradient(135deg, #0284c7 0%, #0271a5 100%);
-        box-shadow: 0 4px 8px rgba(14, 165, 233, 0.3);
-    }
-
+    .resource-card-action-btn.bookmark-btn,
     .resource-card-action-btn.download-btn {
-        background: white;
-        color: #475569;
-        border: 2px solid #e2e8f0;
+        width: 42px;
+        flex-shrink: 0;
+        padding: 0;
     }
 
-    .resource-card-action-btn.download-btn:hover {
-        background: #f8f9fa;
-        border-color: #cbd5e1;
-        transform: translateY(-1px);
+    .resource-card-action-btn i {
+        font-size: 14px;
     }
+
 
     .no-resources {
         text-align: center;
@@ -2825,7 +2981,7 @@ echo $OUTPUT->header();
     /* Pagination Styles */
     .resources-pagination {
         display: flex;
-        justify-content: center;
+        justify-content: end;
         align-items: center;
         gap: 8px;
         margin-top: 32px;
@@ -3210,16 +3366,16 @@ echo $OUTPUT->header();
     .teacher-dashboard-wrapper .dashboard-hero {
         display: flex;
         flex-direction: column;
-        gap: 1rem;
+        gap: 0.5rem;
         padding: 1.75rem 2rem;
         box-shadow: 0 12px 30px rgb(15 23 42 / .08);
         background: linear-gradient(135deg, white, #f4f7f8);
         border-radius: 18px 18px 0 0;
         border-top: 0px solid #fff0;
         border-bottom: 3px solid #fff0;
-        border-image: linear-gradient(90deg, #9fa1ff, #98dbfa, #92f0e5);
+        border-image: linear-gradient(90deg, #ffdc04, #ff5802, #0fc7ff);
         border-image-slice: 1;
-        margin-bottom: 1.5rem;
+        margin-bottom: 0.5rem;
     }
 
     .teacher-dashboard-wrapper .dashboard-hero-header {
@@ -3543,11 +3699,11 @@ echo $OUTPUT->header();
     }
 
     .resources-grid-container {
-        max-height: calc(100vh - 300px);
+        max-height: 200vh;
     }
 
     .resources-grid {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
         gap: 16px;
     }
 
@@ -5118,6 +5274,16 @@ echo $OUTPUT->header();
         font-weight: 600;
     }
 
+    .teacher-main-content,
+    .admin-main-content {
+        padding-top: 20px !important;
+    }
+
+    label {
+        display: inline-block;
+        margin-bottom: 0px !important;
+    }
+
     /* Tier cards – responsive breakpoints */
     @media (max-width: 1400px) {
         .tier-cards-grid {
@@ -5240,150 +5406,33 @@ echo $OUTPUT->header();
                 <!-- Curriculum Layer removed (moved to theme sidebar) -->
 
                 <!-- Navigation Tier Cards - All Resources, Plan, Teach, Assess -->
-                <div class="tier-cards-container">
-                    <div class="tier-cards-grid">
-                        <!-- Step 0 Card - All Resources -->
-                        <div class="tier-card tier-card-0 tier-card-all" data-tab="all"
-                            onclick="filterByResourceType('all')">
-                            <div class="tier-card-content">
-                                <!-- Icon on Left -->
-                                <div class="tier-card-icon-section">
-                                    <div class="tier-card-icon icon-all">
-                                        <i class="fa fa-th"></i>
-                                    </div>
-                                </div>
-
-                                <!-- Vertical Divider Line -->
-                                <div class="tier-card-divider"></div>
-
-                                <!-- Content Section -->
-                                <div class="tier-card-body">
-                                    <h3 class="tier-card-title">All Resources</h3>
-                                    <p class="tier-card-description">Browse all available teaching resources across all
-                                        curriculum levels and themes.</p>
-                                    <div class="tier-card-count-badge">
-                                        <span class="tier-card-count" id="tierCardCountAll">0</span>
-                                        <span>resources</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Checkmark for active state -->
-                            <div class="tier-card-checkmark">
-                                <i class="fa fa-check"></i>
-                            </div>
+                <div class="tier-cards-container second-level-visible">
+                    <div class="category-toggle-control" id="resourceTabToggle">
+                        <div class="category-toggle-item active" data-tab="all" onclick="filterByResourceType('all')">
+                            <i class="fa fa-th"></i>
+                            <span class="category-toggle-label">All Resources</span>
+                            <span class="category-toggle-count" id="tierCardCountAll">0</span>
                         </div>
-
-                        <!-- Arrow Between Cards -->
-                        <div class="tier-card-arrow-between">
-                            <div class="flow-arrow"></div>
+                        <div class="category-toggle-item" data-tab="planning" onclick="filterByResourceType('plan')">
+                            <i class="fa fa-lightbulb"></i>
+                            <span class="category-toggle-label">Plan</span>
+                            <span class="category-toggle-count" id="tierCardCountPlan">0</span>
                         </div>
-
-                        <!-- Step 1 Card - Planning -->
-                        <div class="tier-card tier-card-1 tier-card-planning" data-tab="planning"
-                            onclick="filterByResourceType('plan')">
-                            <div class="tier-card-content">
-                                <!-- Icon on Left -->
-                                <div class="tier-card-icon-section">
-                                    <div class="tier-card-icon icon-planning">
-                                        <i class="fa fa-lightbulb"></i>
-                                    </div>
-                                </div>
-
-                                <!-- Vertical Divider Line -->
-                                <div class="tier-card-divider"></div>
-
-                                <!-- Content Section -->
-                                <div class="tier-card-body">
-                                    <h3 class="tier-card-title">Plan</h3>
-                                    <p class="tier-card-description">Organize your lesson plans and curriculum to create
-                                        engaging educational content.</p>
-                                    <div class="tier-card-count-badge">
-                                        <span class="tier-card-count" id="tierCardCountPlan">0</span>
-                                        <span>resources</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Checkmark for active state -->
-                            <div class="tier-card-checkmark">
-                                <i class="fa fa-check"></i>
-                            </div>
+                        <div class="category-toggle-item" data-tab="resources" onclick="filterByResourceType('teach')">
+                            <i class="fa fa-chalkboard-user"></i>
+                            <span class="category-toggle-label">Teach</span>
+                            <span class="category-toggle-count" id="tierCardCountTeach">0</span>
                         </div>
-
-                        <!-- Arrow Between Cards -->
-                        <div class="tier-card-arrow-between">
-                            <div class="flow-arrow"></div>
-                        </div>
-
-                        <!-- Step 2 Card - Teaching -->
-                        <div class="tier-card tier-card-2 tier-card-resources" data-tab="resources"
-                            onclick="filterByResourceType('teach')">
-                            <div class="tier-card-content">
-                                <!-- Icon on Left -->
-                                <div class="tier-card-icon-section">
-                                    <div class="tier-card-icon icon-resources">
-                                        <i class="fa fa-chalkboard-user"></i>
-                                    </div>
-                                </div>
-
-                                <!-- Vertical Divider Line -->
-                                <div class="tier-card-divider"></div>
-
-                                <!-- Content Section -->
-                                <div class="tier-card-body">
-                                    <h3 class="tier-card-title">Teach</h3>
-                                    <p class="tier-card-description">Deliver lessons and share activities that help
-                                        students learn confidently.</p>
-                                    <div class="tier-card-count-badge">
-                                        <span class="tier-card-count"
-                                            id="tierCardCountTeach">0</span><span>resources</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Checkmark for active state -->
-                            <div class="tier-card-checkmark">
-                                <i class="fa fa-check"></i>
-                            </div>
-                        </div>
-
-                        <!-- Arrow Between Cards -->
-                        <div class="tier-card-arrow-between">
-                            <div class="flow-arrow"></div>
-                        </div>
-
-                        <!-- Step 3 Card - Assessments -->
-                        <div class="tier-card tier-card-3 tier-card-assessments" data-tab="assessments"
+                        <div class="category-toggle-item" data-tab="assessments"
                             onclick="filterByResourceType('assess')">
-                            <div class="tier-card-content">
-                                <!-- Icon on Left -->
-                                <div class="tier-card-icon-section">
-                                    <div class="tier-card-icon">
-                                        <i class="fa fa-edit"></i>
-                                    </div>
-                                </div>
-
-                                <!-- Vertical Divider Line -->
-                                <div class="tier-card-divider"></div>
-
-                                <!-- Content Section -->
-                                <div class="tier-card-body">
-                                    <h3 class="tier-card-title">Assess</h3>
-                                    <p class="tier-card-description">Manage assignments and quizzes to track progress
-                                        and provide feedback.</p>
-                                    <div class="tier-card-count-badge">
-                                        <span class="tier-card-count"
-                                            id="tierCardCountAssess">0</span><span>resources</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Checkmark for active state -->
-                            <div class="tier-card-checkmark">
-                                <i class="fa fa-check"></i>
-                            </div>
+                            <i class="fa fa-edit"></i>
+                            <span class="category-toggle-label">Assess</span>
+                            <span class="category-toggle-count" id="tierCardCountAssess">0</span>
                         </div>
                     </div>
 
                     <!-- Expanded Categories Section - Shows when any tier card is active -->
-                    <div class="tier-cards-expanded-section" id="tier-cards-expanded">
+                    <div class="tier-cards-expanded-section" id="tier-cards-expanded" style="display: none !important;">
                         <div class="category-cards-grid" id="categoryCardsGrid">
                             <!-- Will be populated by JavaScript -->
                         </div>
@@ -5408,21 +5457,6 @@ echo $OUTPUT->header();
                             <button class="clear-search-btn" onclick="clearSearch()" style="display: none;">
                                 <i class="fa fa-times"></i>
                             </button>
-                        </div>
-
-                        <!-- Resource type filter (multi-select with checkboxes) -->
-                        <div class="resource-type-filter-wrapper multi-select-dropdown" id="resourceTypeFiltersSection">
-                            <button type="button" class="multi-select-button"
-                                onclick="toggleMultiSelectDropdown('resourceTypeFilters')">
-                                <i class="fa fa-file"></i>
-                                <span class="multi-select-text" id="resourceTypeFiltersText">All Types</span>
-                                <i class="fa fa-chevron-down multi-select-arrow"></i>
-                            </button>
-                            <div class="multi-select-dropdown-menu" id="resourceTypeFiltersDropdown">
-                                <ul class="multi-select-options" id="resourceTypeFiltersList">
-                                    <!-- Populated by JavaScript -->
-                                </ul>
-                            </div>
                         </div>
 
                         <!-- Folders and Files Filter Select - visible only when at least one section is selected -->
@@ -5965,6 +5999,16 @@ echo $OUTPUT->header();
                                                 echo '        updateSectionsAndFoldersFilters();';
                                                 echo '    }';
                                                 echo '}';
+                                                echo 'function syncResourceTypeFilters(element) {';
+                                                echo '    const val = element.getAttribute("data-filter-value");';
+                                                echo '    const checked = element.checked;';
+                                                echo '    document.querySelectorAll("input[data-filter-type=\\"resource-type\\"][data-filter-value=\\"" + val + "\\"]").forEach(cb => {';
+                                                echo '        cb.checked = checked;';
+                                                echo '    });';
+                                                echo '    if (typeof updateMultiSelectText === "function") {';
+                                                echo '        updateMultiSelectText("resourceTypeFilters");';
+                                                echo '    }';
+                                                echo '}';
                                                 echo '</script>';
 
                                                 echo '<script>';
@@ -6036,8 +6080,32 @@ echo $OUTPUT->header();
                                                     $varsuffix = preg_replace('/[^A-Za-z0-9]/', '', $file_type);
                                                     echo 'const li' . $varsuffix . ' = document.createElement("li");';
                                                     echo 'li' . $varsuffix . '.className = "multi-select-option";';
-                                                    echo 'li' . $varsuffix . '.innerHTML = \'<label><input type="checkbox" class="filter-checkbox" data-filter-type="resource-type" data-filter-value="' . $safe_filter_value . '" onchange="updateMultiSelectText(\\\'resourceTypeFilters\\\'); filterResources();"><span class="filter-checkbox-dot ' . $safe_dot_class . '"></span>' . $safe_display_name . '</label>\';';
+                                                    echo 'li' . $varsuffix . '.innerHTML = \'<label><input type="checkbox" class="filter-checkbox" data-filter-type="resource-type" data-filter-value="' . $safe_filter_value . '" onchange="syncResourceTypeFilters(this); filterResources();"><span class="filter-checkbox-dot ' . $safe_dot_class . '"></span>' . $safe_display_name . '</label>\';';
                                                     echo 'resourceTypeFiltersList.appendChild(li' . $varsuffix . ');';
+                                                }
+                                                echo '}';
+
+                                                // Populate sidebar resource type filter checkboxes
+                                                echo 'const sidebarResourceTypeFilters = document.getElementById("sidebarResourceTypeFilters");';
+                                                echo 'if (sidebarResourceTypeFilters) {';
+                                                foreach ($available_file_types as $file_type) {
+                                                    $filtervalue = (strtolower($file_type) === 'images')
+                                                        ? 'images'
+                                                        : ((strtolower($file_type) === 'videos')
+                                                            ? 'videos'
+                                                            : theme_remui_kids_teacher_resource_filter_type($file_type));
+                                                    $displayname = theme_remui_kids_teacher_resource_filter_label(
+                                                        strtolower($file_type) === 'videos' ? 'videos' : $file_type
+                                                    );
+                                                    $dotclass = theme_remui_kids_teacher_resource_filter_dot_class($filtervalue);
+                                                    $safe_display_name = addslashes($displayname);
+                                                    $safe_filter_value = addslashes($filtervalue);
+                                                    $safe_dot_class = addslashes($dotclass);
+                                                    $varsuffix = preg_replace('/[^A-Za-z0-9]/', '', $file_type);
+                                                    echo 'const sbli' . $varsuffix . ' = document.createElement("li");';
+                                                    echo 'sbli' . $varsuffix . '.className = "filter-checkbox-item";';
+                                                    echo 'sbli' . $varsuffix . '.innerHTML = \'<label class="filter-checkbox-label"><input type="checkbox" class="filter-checkbox" data-filter-type="resource-type" data-filter-value="' . $safe_filter_value . '" onchange="syncResourceTypeFilters(this); filterResources();"><span class="filter-checkbox-dot ' . $safe_dot_class . '"></span>' . $safe_display_name . '</label>\';';
+                                                    echo 'sidebarResourceTypeFilters.appendChild(sbli' . $varsuffix . ');';
                                                 }
                                                 echo '}';
 
@@ -6136,19 +6204,7 @@ echo $OUTPUT->header();
                                                 }
 
                                                 // Add Foundation, Intermediate, and Advanced categories only when teacher has courses in that tier
-                                                // Foundation = Grade 1-5, Intermediate = Grade 6-8, Advanced = Grade 9-12
-                                                $teacher_grade_numbers = [];
-                                                foreach ($teacher_courses as $tc) {
-                                                    $name = ($tc->fullname ?? '') . ' ' . ($tc->shortname ?? '');
-                                                    if (preg_match_all('/\bGrade\s*(\d{1,2})\b/i', $name, $m)) {
-                                                        foreach ($m[1] as $g) {
-                                                            $g = (int) $g;
-                                                            if ($g >= 1 && $g <= 12 && !in_array($g, $teacher_grade_numbers, true)) {
-                                                                $teacher_grade_numbers[] = $g;
-                                                            }
-                                                        }
-                                                    }
-                                                }
+                                                // Grade numbers are already calculated at the top
                                                 $teacher_has_foundation = count(array_intersect($teacher_grade_numbers, [1, 2, 3, 4, 5])) > 0;
                                                 $teacher_has_intermediate = count(array_intersect($teacher_grade_numbers, [6, 7, 8])) > 0;
                                                 $teacher_has_advanced = count(array_intersect($teacher_grade_numbers, [9, 10, 11, 12])) > 0;
@@ -6379,6 +6435,14 @@ echo $OUTPUT->header();
                                                     $has_preview = !empty($preview_image_url);
 
                                                     // Generate grid card for file
+                                                    $res_id = $file->get_id();
+                                                    $res_type = 'file';
+                                                    $meta_key = $res_type . '_' . $res_id;
+                                                    $meta = isset($res_meta_map[$meta_key]) ? $res_meta_map[$meta_key] : null;
+                                                    $unit_val = $meta ? $meta->unit : '';
+                                                    $lesson_val = $meta ? $meta->lesson : '';
+                                                    $custom_preview = $meta ? $meta->preview_image : '';
+
                                                     $category_id = isset($resource_item['category_id']) ? $resource_item['category_id'] : 0;
                                                     $direct_category_id = isset($resource_item['direct_category_id']) ? $resource_item['direct_category_id'] : 0;
                                                     $course_id = isset($resource_item['course']) ? $resource_item['course']->id : 0;
@@ -6386,7 +6450,13 @@ echo $OUTPUT->header();
                                                     $section_name = isset($resource_item['section']) ? $resource_item['section'] : '';
                                                     $folder_name = isset($resource_item['folder_name']) ? $resource_item['folder_name'] : '';
                                                     $folder_tag = isset($resource_item['folder_tag']) ? $resource_item['folder_tag'] : '';
-                                                    echo '<div class="resource-card" ';
+                                                    $grade_number = 0;
+                                                    if (isset($course_name) && preg_match('/\bGrade\s*(\d{1,2})\b/i', $course_name, $m)) {
+                                                        $grade_number = (int) $m[1];
+                                                    }
+                                                    echo '<div class="resource-card" data-grade="' . $grade_number . '" ';
+                                                    echo 'data-unit="' . htmlspecialchars($unit_val, ENT_QUOTES) . '" ';
+                                                    echo 'data-lesson="' . htmlspecialchars($lesson_val, ENT_QUOTES) . '" ';
                                                     echo 'data-resource-type="' . htmlspecialchars(theme_remui_kids_teacher_resource_filter_type($file_extension), ENT_QUOTES) . '" ';
                                                     echo 'data-category="' . htmlspecialchars($category, ENT_QUOTES) . '" ';
                                                     echo 'data-category-id="' . htmlspecialchars($category_id, ENT_QUOTES) . '" ';
@@ -6416,31 +6486,10 @@ echo $OUTPUT->header();
                                                     }
                                                     echo 'data-file-name="' . htmlspecialchars(theme_remui_kids_teacher_strip_extension($filename), ENT_QUOTES) . '">';
 
-                                                    // Card image/icon container
-                                                    echo '<div class="resource-card-image-container">';
-
-                                                    // Check if it's an image or other format
-                                                    $is_image = in_array(strtolower($file_extension), ['png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp', 'webp']);
-
-                                                    if ($is_image && $preview_image_url) {
-                                                        // Images can render immediately since they are very lightweight and native
-                                                        echo '<img class="resource-card-image" src="' . htmlspecialchars($preview_image_url, ENT_QUOTES) . '" alt="' . htmlspecialchars($filename, ENT_QUOTES) . '" loading="lazy" onload="this.style.display=\'block\'; if(this.nextElementSibling) this.nextElementSibling.style.display=\'none\';" onerror="this.style.display=\'none\'; if(this.nextElementSibling) this.nextElementSibling.style.display=\'flex\';" />';
-                                                        echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: none;">';
-                                                        echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
-                                                        echo '</div>';
-                                                    } else {
-                                                        // Default static icon placeholder for PDFs, videos, SCORM, Microsoft Office, and uncategorized files. No canvas, video, or iframe tags in HTML!
-                                                        echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: flex;">';
-                                                        echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
-                                                        echo '</div>';
-                                                    }
-                                                    echo '</div>';
-
-                                                    // Resource type tag with icon (below image)
+                                                    // Determine format tag display name and icon
                                                     $image_extensions = ['PNG', 'JPG', 'JPEG', 'GIF', 'SVG', 'BMP', 'WEBP'];
                                                     $file_ext_lower = strtolower($file_extension);
 
-                                                    // Determine display name and icon
                                                     $video_file_extensions = ['HTML', 'HTM', 'MP4', 'AVI', 'MOV', 'WMV', 'MKV', 'WEBM'];
                                                     if (in_array($file_extension, $video_file_extensions)) {
                                                         $format_tag_display = 'Videos';
@@ -6455,7 +6504,7 @@ echo $OUTPUT->header();
                                                         $format_icon = 'fa-file-pdf';
                                                         $format_type = 'pdf';
                                                     } else if (in_array($file_ext_lower, ['pptx', 'ppt'])) {
-                                                        $format_tag_display = 'PowerPoint';
+                                                        $format_tag_display = 'PPT';
                                                         $format_icon = 'fa-file-powerpoint';
                                                         $format_type = 'pptx';
                                                     } else if (in_array($file_ext_lower, ['xlsx', 'xls', 'csv'])) {
@@ -6476,18 +6525,60 @@ echo $OUTPUT->header();
                                                         $format_type = strtolower($file_extension);
                                                     }
 
+                                                    // Card image/icon container
+                                                    echo '<div class="resource-card-image-container">';
+
+                                                    // Check if it's an image or other format
+                                                    $is_image = in_array(strtolower($file_extension), ['png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp', 'webp']);
+
+                                                    if ($custom_preview) {
+                                                        echo '<img class="resource-card-image" src="' . htmlspecialchars($custom_preview, ENT_QUOTES) . '" alt="" loading="lazy" onload="this.style.display=\'block\'; if(this.nextElementSibling) this.nextElementSibling.style.display=\'none\';" onerror="this.style.display=\'none\'; if(this.nextElementSibling) this.nextElementSibling.style.display=\'flex\';" />';
+                                                        echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: none;">';
+                                                        echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
+                                                        echo '</div>';
+                                                    } else if ($is_image && $preview_image_url) {
+                                                        // Images can render immediately since they are very lightweight and native
+                                                        echo '<img class="resource-card-image" src="' . htmlspecialchars($preview_image_url, ENT_QUOTES) . '" alt="' . htmlspecialchars($filename, ENT_QUOTES) . '" loading="lazy" onload="this.style.display=\'block\'; if(this.nextElementSibling) this.nextElementSibling.style.display=\'none\';" onerror="this.style.display=\'none\'; if(this.nextElementSibling) this.nextElementSibling.style.display=\'flex\';" />';
+                                                        echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: none;">';
+                                                        echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
+                                                        echo '</div>';
+                                                    } else {
+                                                        // Default static icon placeholder for PDFs, videos, SCORM, Microsoft Office, and uncategorized files.
+                                                        echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: flex;">';
+                                                        echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
+                                                        echo '</div>';
+                                                    }
+
+                                                    // Format tag inside the image container (absolute overlay)
                                                     echo '<div class="resource-card-format-tag" data-type="' . htmlspecialchars($format_type, ENT_QUOTES) . '">';
                                                     echo '<i class="fa ' . $format_icon . '"></i>';
                                                     echo '<span>' . htmlspecialchars($format_tag_display, ENT_QUOTES) . '</span>';
                                                     echo '</div>';
 
+                                                    echo '</div>'; // End resource-card-image-container
+                                        
+                                                    // Colored Divider Line
+                                                    echo '<div class="resource-card-divider-line" data-type="' . htmlspecialchars($format_type, ENT_QUOTES) . '"></div>';
+
                                                     // Card body
                                                     echo '<div class="resource-card-body">';
-                                                    echo '<h4 class="resource-card-title">' . s(theme_remui_kids_teacher_strip_extension($filename)) . '</h4>';
+                                                    $prefix = '';
+                                                    if ($unit_val !== '' || $lesson_val !== '') {
+                                                        $clean_filename = theme_remui_kids_teacher_strip_extension($filename);
+                                                        $has_unit = ($unit_val === '' || stripos($clean_filename, trim($unit_val)) !== false);
+                                                        $has_lesson = ($lesson_val === '' || stripos($clean_filename, trim($lesson_val)) !== false);
+                                                        if (!($has_unit && $has_lesson)) {
+                                                            $prefix = trim($unit_val . ' ' . $lesson_val) . ' ';
+                                                        }
+                                                    }
+                                                    echo '<h4 class="resource-card-title">' . s($prefix . theme_remui_kids_teacher_strip_extension($filename)) . '</h4>';
                                                     echo '<div class="resource-card-tags">';
-                                                    // Show course name, section name, and folder name as colored pills
+
+                                                    // Show grade/course name, section name, and folder name as colored pills
                                                     $course_name = isset($resource_item['course']) ? format_string($resource_item['course']->fullname) : '';
-                                                    if ($course_name) {
+                                                    if ($grade_number > 0) {
+                                                        echo '<span class="resource-card-tag resource-card-tag-course">Grade ' . $grade_number . '</span>';
+                                                    } else if ($course_name) {
                                                         echo '<span class="resource-card-tag resource-card-tag-course">' . html_entity_decode($course_name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</span>';
                                                     }
                                                     if ($section_name) {
@@ -6496,16 +6587,24 @@ echo $OUTPUT->header();
                                                     if ($folder_name) {
                                                         echo '<span class="resource-card-tag resource-card-tag-folder">' . html_entity_decode($folder_name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</span>';
                                                     }
+                                                    if ($unit_val !== '' || $lesson_val !== '') {
+                                                        echo '<span class="resource-card-tag resource-card-tag-unit">' . htmlspecialchars(trim($unit_val . ' ' . $lesson_val), ENT_QUOTES) . '</span>';
+                                                    }
 
                                                     echo '</div>';
                                                     echo '<div class="resource-card-actions">';
                                                     echo '<button class="resource-card-action-btn view-btn" data-file-type="' . htmlspecialchars(strtolower($file_extension), ENT_QUOTES) . '" onclick="previewTeacherFile(this.closest(\'.resource-card\'))">';
                                                     echo '<i class="fa fa-eye"></i> View';
                                                     echo '</button>';
+
+                                                    echo '<button class="resource-card-action-btn bookmark-btn" type="button">';
+                                                    echo '<i class="fa fa-bookmark-o"></i>';
+                                                    echo '</button>';
+
                                                     // Hide Download button for HTML files
                                                     if (!in_array(strtolower($file_extension), ['html', 'htm'])) {
                                                         echo '<button class="resource-card-action-btn download-btn" onclick="event.stopPropagation(); downloadResourceFile(\'' . htmlspecialchars($fileurlstring, ENT_QUOTES) . '\')">';
-                                                        echo '<i class="fa fa-download"></i> Download';
+                                                        echo '<i class="fa fa-download"></i>';
                                                         echo '</button>';
                                                     }
                                                     echo '</div>';
@@ -6633,7 +6732,11 @@ echo $OUTPUT->header();
                                                     $section_name = isset($resource_item['section']) ? $resource_item['section'] : '';
                                                     $folder_name = isset($resource_item['folder_name']) ? $resource_item['folder_name'] : '';
                                                     $folder_tag = isset($resource_item['folder_tag']) ? $resource_item['folder_tag'] : '';
-                                                    echo '<div class="resource-card" ';
+                                                    $grade_number = 0;
+                                                    if (isset($course_name) && preg_match('/\bGrade\s*(\d{1,2})\b/i', $course_name, $m)) {
+                                                        $grade_number = (int) $m[1];
+                                                    }
+                                                    echo '<div class="resource-card" data-grade="' . $grade_number . '" ';
                                                     $card_resource_filter_type = theme_remui_kids_teacher_resource_filter_type($file_extension);
                                                     echo 'data-resource-type="' . htmlspecialchars($card_resource_filter_type, ENT_QUOTES) . '" ';
                                                     echo 'data-category="' . htmlspecialchars($category, ENT_QUOTES) . '" ';
@@ -6671,34 +6774,48 @@ echo $OUTPUT->header();
 
                                                     // Card image/icon container
                                                     $has_preview = !empty($preview_image_url) && $file_extension !== 'LINK';
-                                                    echo '<div class="resource-card-image-container">';
+                                                    // Determine format tag display name and icon for Loop 2
+                                                    $file_ext_lower = strtolower($resourcefileext ?: '');
+                                                    $mod_name_lower = strtolower($mod_name ?: '');
 
-                                                    $is_image = in_array(strtolower($file_extension), ['png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp', 'webp']);
-
-                                                    if ($is_image && $preview_image_url) {
-                                                        echo '<img class="resource-card-image" src="' . htmlspecialchars($preview_image_url, ENT_QUOTES) . '" alt="' . htmlspecialchars($resource_display_name, ENT_QUOTES) . '" loading="lazy" onload="this.style.display=\'block\'; if(this.nextElementSibling) this.nextElementSibling.style.display=\'none\';" onerror="this.style.display=\'none\'; if(this.nextElementSibling) this.nextElementSibling.style.display=\'flex\';" />';
-                                                        echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: none;">';
-                                                        echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
-                                                        echo '</div>';
+                                                    if ($mod_name_lower === 'url' || $file_ext_lower === 'link' || $file_ext_lower === 'url') {
+                                                        $format_tag_display = 'URL';
+                                                        $format_icon = 'fa-link';
+                                                        $format_type = 'url';
+                                                    } else if ($mod_name_lower === 'scorm') {
+                                                        $format_tag_display = 'SCORM';
+                                                        $format_icon = 'fa-graduation-cap';
+                                                        $format_type = 'scorm';
+                                                    } else if ($mod_name_lower === 'quiz') {
+                                                        $format_tag_display = 'Quiz';
+                                                        $format_icon = 'fa-question-circle';
+                                                        $format_type = 'quiz';
+                                                    } else if ($mod_name_lower === 'assign') {
+                                                        $format_tag_display = 'Assignment';
+                                                        $format_icon = 'fa-tasks';
+                                                        $format_type = 'assign';
+                                                    } else if ($mod_name_lower === 'page') {
+                                                        $format_tag_display = 'Page';
+                                                        $format_icon = 'fa-file-alt';
+                                                        $format_type = 'page';
+                                                    } else if ($mod_name_lower === 'book') {
+                                                        $format_tag_display = 'Book';
+                                                        $format_icon = 'fa-book';
+                                                        $format_type = 'book';
+                                                    } else if ($mod_name_lower === 'h5p' || $mod_name_lower === 'h5pactivity') {
+                                                        $format_tag_display = 'H5P';
+                                                        $format_icon = 'fa-file-video';
+                                                        $format_type = 'h5p';
                                                     } else {
-                                                        echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: flex;">';
-                                                        echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
-                                                        echo '</div>';
-                                                    }
-                                                    echo '</div>';
+                                                        // Fallback to file extension mapping
+                                                        $image_extensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp', 'webp'];
+                                                        $video_file_extensions = ['html', 'htm', 'mp4', 'avi', 'mov', 'wmv', 'mkv', 'webm'];
 
-                                                    // Resource type tag with icon (below image)
-                                                    if ($file_extension !== 'LINK') {
-                                                        $image_extensions = ['PNG', 'JPG', 'JPEG', 'GIF', 'SVG', 'BMP', 'WEBP'];
-                                                        $file_ext_lower = strtolower($file_extension);
-
-                                                        // Determine display name and icon
-                                                        $video_file_extensions = ['HTML', 'HTM', 'MP4', 'AVI', 'MOV', 'WMV', 'MKV', 'WEBM'];
-                                                        if (in_array($file_extension, $video_file_extensions)) {
+                                                        if (in_array($file_ext_lower, $video_file_extensions)) {
                                                             $format_tag_display = 'Videos';
                                                             $format_icon = 'fa-video';
                                                             $format_type = 'videos';
-                                                        } else if (in_array($file_extension, $image_extensions)) {
+                                                        } else if (in_array($file_ext_lower, $image_extensions)) {
                                                             $format_tag_display = 'Images';
                                                             $format_icon = 'fa-image';
                                                             $format_type = 'images';
@@ -6707,7 +6824,7 @@ echo $OUTPUT->header();
                                                             $format_icon = 'fa-file-pdf';
                                                             $format_type = 'pdf';
                                                         } else if (in_array($file_ext_lower, ['pptx', 'ppt'])) {
-                                                            $format_tag_display = 'PowerPoint';
+                                                            $format_tag_display = 'PPT';
                                                             $format_icon = 'fa-file-powerpoint';
                                                             $format_type = 'pptx';
                                                         } else if (in_array($file_ext_lower, ['xlsx', 'xls', 'csv'])) {
@@ -6718,29 +6835,64 @@ echo $OUTPUT->header();
                                                             $format_tag_display = 'Word';
                                                             $format_icon = 'fa-file-word';
                                                             $format_type = 'docx';
-                                                        } else if ($file_ext_lower === 'url' || $file_ext_lower === 'link') {
-                                                            $format_tag_display = 'URL';
-                                                            $format_icon = 'fa-link';
-                                                            $format_type = 'url';
                                                         } else {
-                                                            $format_tag_display = $file_extension;
-                                                            $format_icon = 'fa-file';
-                                                            $format_type = strtolower($file_extension);
+                                                            $format_tag_display = $file_extension ?: strtoupper($mod_name);
+                                                            $format_icon = $icon_class ?: 'fa-file';
+                                                            $format_type = strtolower($file_ext_lower ?: $mod_name_lower);
                                                         }
+                                                    }
 
-                                                        echo '<div class="resource-card-format-tag" data-type="' . htmlspecialchars($format_type, ENT_QUOTES) . '">';
-                                                        echo '<i class="fa ' . $format_icon . '"></i>';
-                                                        echo '<span>' . htmlspecialchars($format_tag_display, ENT_QUOTES) . '</span>';
+                                                    // Card image/icon container
+                                                    echo '<div class="resource-card-image-container">';
+
+                                                    $is_image = in_array(strtolower($file_extension), ['png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp', 'webp']);
+
+                                                    if ($custom_preview) {
+                                                        echo '<img class="resource-card-image" src="' . htmlspecialchars($custom_preview, ENT_QUOTES) . '" alt="' . htmlspecialchars($resource_display_name, ENT_QUOTES) . '" loading="lazy" onload="this.style.display=\'block\'; if(this.nextElementSibling) this.nextElementSibling.style.display=\'none\';" onerror="this.style.display=\'none\'; if(this.nextElementSibling) this.nextElementSibling.style.display=\'flex\';" />';
+                                                        echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: none;">';
+                                                        echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
+                                                        echo '</div>';
+                                                    } else if ($is_image && $preview_image_url) {
+                                                        echo '<img class="resource-card-image" src="' . htmlspecialchars($preview_image_url, ENT_QUOTES) . '" alt="' . htmlspecialchars($resource_display_name, ENT_QUOTES) . '" loading="lazy" onload="this.style.display=\'block\'; if(this.nextElementSibling) this.nextElementSibling.style.display=\'none\';" onerror="this.style.display=\'none\'; if(this.nextElementSibling) this.nextElementSibling.style.display=\'flex\';" />';
+                                                        echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: none;">';
+                                                        echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
+                                                        echo '</div>';
+                                                    } else {
+                                                        echo '<div class="resource-card-image-placeholder" style="background: ' . $bg_color . '; display: flex;">';
+                                                        echo '<i class="fa ' . $icon_class . '" style="font-size: 64px; color: ' . $icon_color . ';"></i>';
                                                         echo '</div>';
                                                     }
 
+                                                    // Format tag inside the image container (absolute overlay)
+                                                    echo '<div class="resource-card-format-tag" data-type="' . htmlspecialchars($format_type, ENT_QUOTES) . '">';
+                                                    echo '<i class="fa ' . $format_icon . '"></i>';
+                                                    echo '<span>' . htmlspecialchars($format_tag_display, ENT_QUOTES) . '</span>';
+                                                    echo '</div>';
+
+                                                    echo '</div>'; // End resource-card-image-container
+                                        
+                                                    // Colored Divider Line
+                                                    echo '<div class="resource-card-divider-line" data-type="' . htmlspecialchars($format_type, ENT_QUOTES) . '"></div>';
+
                                                     // Card body
                                                     echo '<div class="resource-card-body">';
-                                                    echo '<h4 class="resource-card-title">' . theme_remui_kids_teacher_strip_extension(format_string($cm->name)) . '</h4>';
+                                                    $prefix = '';
+                                                    if ($unit_val !== '' || $lesson_val !== '') {
+                                                        $clean_name = theme_remui_kids_teacher_strip_extension(format_string($cm->name));
+                                                        $has_unit = ($unit_val === '' || stripos($clean_name, trim($unit_val)) !== false);
+                                                        $has_lesson = ($lesson_val === '' || stripos($clean_name, trim($lesson_val)) !== false);
+                                                        if (!($has_unit && $has_lesson)) {
+                                                            $prefix = trim($unit_val . ' ' . $lesson_val) . ' ';
+                                                        }
+                                                    }
+                                                    echo '<h4 class="resource-card-title">' . s($prefix . theme_remui_kids_teacher_strip_extension(format_string($cm->name))) . '</h4>';
                                                     echo '<div class="resource-card-tags">';
-                                                    // Show course name, section name, and folder name as colored pills
+
+                                                    // Show grade/course name, section name, and folder name as colored pills
                                                     $course_name = isset($resource_item['course']) ? format_string($resource_item['course']->fullname) : '';
-                                                    if ($course_name) {
+                                                    if ($grade_number > 0) {
+                                                        echo '<span class="resource-card-tag resource-card-tag-course">Grade ' . $grade_number . '</span>';
+                                                    } else if ($course_name) {
                                                         echo '<span class="resource-card-tag resource-card-tag-course">' . html_entity_decode($course_name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</span>';
                                                     }
                                                     if ($section_name) {
@@ -6749,21 +6901,30 @@ echo $OUTPUT->header();
                                                     if ($folder_name) {
                                                         echo '<span class="resource-card-tag resource-card-tag-folder">' . html_entity_decode($folder_name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</span>';
                                                     }
+                                                    if ($unit_val !== '' || $lesson_val !== '') {
+                                                        echo '<span class="resource-card-tag resource-card-tag-unit">' . htmlspecialchars(trim($unit_val . ' ' . $lesson_val), ENT_QUOTES) . '</span>';
+                                                    }
                                                     echo '</div>';
+
                                                     echo '<div class="resource-card-actions">';
                                                     $view_btn_file_type = !empty($resourcefileext) ? strtolower($resourcefileext) : strtolower($mod_name);
                                                     echo '<button class="resource-card-action-btn view-btn" data-file-type="' . htmlspecialchars($view_btn_file_type, ENT_QUOTES) . '" onclick="event.stopPropagation(); openResource(this.closest(\'.resource-card\'), ' . $cm->id . ', \'' . addslashes($cm->name) . '\', \'' . $mod_name . '\')">';
                                                     echo '<i class="fa fa-eye"></i> View';
                                                     echo '</button>';
+
+                                                    echo '<button class="resource-card-action-btn bookmark-btn" type="button">';
+                                                    echo '<i class="fa fa-bookmark-o"></i>';
+                                                    echo '</button>';
+
                                                     // Hide Download button for HTML files
                                                     if ($resourcefileurl && $resourcefileext !== 'link' && !in_array(strtolower($resourcefileext), ['html', 'htm'])) {
                                                         echo '<button class="resource-card-action-btn download-btn" onclick="event.stopPropagation(); downloadResourceFile(\'' . htmlspecialchars($resourcefileurl, ENT_QUOTES) . '\')">';
-                                                        echo '<i class="fa fa-download"></i> Download';
+                                                        echo '<i class="fa fa-download"></i>';
                                                         echo '</button>';
                                                     }
                                                     echo '</div>';
                                                     echo '</div>';
-                                                    echo '</div>'; // End resource-card
+                                                    echo '</div>'; // End resource-carde-card
                                                 }
                                             }
 
@@ -7144,6 +7305,19 @@ echo $OUTPUT->header();
                         if (typeof currentResourceTypeFilter !== 'undefined' && currentResourceTypeFilter && currentResourceTypeFilter !== 'all') {
                             return String(currentResourceTypeFilter).toLowerCase().trim();
                         }
+                        const activeToggleItem = document.querySelector('.category-toggle-item.active');
+                        if (activeToggleItem) {
+                            const dataTab = activeToggleItem.getAttribute('data-tab');
+                            if (dataTab === 'planning' || dataTab === 'plan') {
+                                return 'plan';
+                            }
+                            if (dataTab === 'resources' || dataTab === 'teach') {
+                                return 'teach';
+                            }
+                            if (dataTab === 'assessments' || dataTab === 'assess') {
+                                return 'assess';
+                            }
+                        }
                         const activeTierCard = document.querySelector('.tier-card.active');
                         if (activeTierCard) {
                             if (activeTierCard.classList.contains('tier-card-1')) {
@@ -7329,6 +7503,178 @@ echo $OUTPUT->header();
                         }
                     }
 
+                    function formatUnitName(unitVal) {
+                        if (!unitVal) return '';
+                        const num = unitVal.replace(/^\D+/g, '');
+                        return 'Unit ' + (num || unitVal);
+                    }
+
+                    function formatLessonName(lessonVal) {
+                        if (!lessonVal) return '';
+                        if (lessonVal.toUpperCase().startsWith('L')) {
+                            return lessonVal.toUpperCase();
+                        }
+                        return 'L' + lessonVal;
+                    }
+
+                    function getVisibleUnitsLessonsMap(scopedCourseIds) {
+                        const courseIds = scopedCourseIds.length > 0 ? scopedCourseIds : getAllTeacherCourseIds();
+                        const map = {}; // unit -> Set of lessons
+                        document.querySelectorAll('.resource-card').forEach(card => {
+                            const cardCourseId = parseInt(card.getAttribute('data-course-id'), 10) || 0;
+                            if (!courseIds.includes(cardCourseId)) {
+                                return;
+                            }
+                            const unit = (card.getAttribute('data-unit') || '').trim();
+                            const lesson = (card.getAttribute('data-lesson') || '').trim();
+                            if (unit !== '') {
+                                if (!map[unit]) {
+                                    map[unit] = new Set();
+                                }
+                                if (lesson !== '') {
+                                    map[unit].add(lesson);
+                                }
+                            }
+                        });
+
+                        // Convert sets to sorted arrays and return sorted keys
+                        const sortedMap = {};
+                        Object.keys(map).sort((a, b) => {
+                            const aNum = parseInt(a.replace(/^\D+/g, '')) || 0;
+                            const bNum = parseInt(b.replace(/^\D+/g, '')) || 0;
+                            if (aNum !== bNum) return aNum - bNum;
+                            return a.localeCompare(b);
+                        }).forEach(unit => {
+                            sortedMap[unit] = Array.from(map[unit]).sort((a, b) => {
+                                const aNum = parseInt(a.replace(/^\D+/g, '')) || 0;
+                                const bNum = parseInt(b.replace(/^\D+/g, '')) || 0;
+                                if (aNum !== bNum) return aNum - bNum;
+                                return a.localeCompare(b);
+                            });
+                        });
+                        return sortedMap;
+                    }
+
+                    function populateGlobalUnitsFilter(scopedCourseIds) {
+                        const sidebarUnitFilterSection = document.getElementById('sidebarUnitFilterSection');
+                        const sidebarUnitFilters = document.getElementById('sidebarUnitFilters');
+                        if (!sidebarUnitFilters) {
+                            return;
+                        }
+
+                        sidebarUnitFilters.innerHTML = '';
+
+                        const unitsMap = getVisibleUnitsLessonsMap(scopedCourseIds);
+                        const units = Object.keys(unitsMap);
+
+                        if (units.length === 0) {
+                            if (sidebarUnitFilterSection) {
+                                sidebarUnitFilterSection.style.display = 'none';
+                            }
+                            return;
+                        }
+
+                        if (sidebarUnitFilterSection) {
+                            sidebarUnitFilterSection.style.display = 'block';
+                        }
+
+                        // Check if previously selected unit is still valid in current results
+                        if (selectedUnitFilter && !units.includes(selectedUnitFilter)) {
+                            selectedUnitFilter = null;
+                            selectedLessonFilter = null;
+                            setTimeout(filterResources, 0);
+                        }
+
+                        units.forEach(unit => {
+                            const lessons = unitsMap[unit];
+                            const lessonCount = lessons.length;
+                            const isUnitActive = (selectedUnitFilter === unit);
+
+                            // Create accordion item
+                            const itemDiv = document.createElement('div');
+                            itemDiv.className = 'unit-accordion-item' + (isUnitActive ? ' active' : '');
+                            itemDiv.setAttribute('data-unit-value', unit);
+
+                            // Accordion header
+                            const headerDiv = document.createElement('div');
+                            headerDiv.className = 'unit-accordion-header';
+
+                            const titleSpan = document.createElement('span');
+                            titleSpan.className = 'unit-title-text';
+                            titleSpan.textContent = formatUnitName(unit);
+
+                            const countSpan = document.createElement('span');
+                            countSpan.className = 'lesson-count-text';
+                            countSpan.textContent = lessonCount + ' lesson' + (lessonCount !== 1 ? 's' : '');
+
+                            const arrowIcon = document.createElement('i');
+                            arrowIcon.className = 'fa fa-chevron-down toggle-arrow';
+
+                            headerDiv.appendChild(titleSpan);
+                            headerDiv.appendChild(countSpan);
+                            headerDiv.appendChild(arrowIcon);
+
+                            // Accordion body
+                            const bodyDiv = document.createElement('div');
+                            bodyDiv.className = 'unit-accordion-body';
+                            if (isUnitActive) {
+                                bodyDiv.style.display = 'block';
+                            }
+
+                            const gridDiv = document.createElement('div');
+                            gridDiv.className = 'lesson-buttons-grid';
+
+                            lessons.forEach(lesson => {
+                                const lessonBtn = document.createElement('button');
+                                lessonBtn.type = 'button';
+                                lessonBtn.className = 'lesson-btn' + (isUnitActive && selectedLessonFilter === lesson ? ' active' : '');
+                                lessonBtn.textContent = formatLessonName(lesson);
+                                lessonBtn.onclick = function (e) {
+                                    e.stopPropagation();
+                                    if (selectedLessonFilter === lesson) {
+                                        selectedLessonFilter = null;
+                                        lessonBtn.classList.remove('active');
+                                    } else {
+                                        selectedLessonFilter = lesson;
+                                        gridDiv.querySelectorAll('.lesson-btn').forEach(btn => btn.classList.remove('active'));
+                                        lessonBtn.classList.add('active');
+                                    }
+                                    filterResources();
+                                };
+                                gridDiv.appendChild(lessonBtn);
+                            });
+
+                            bodyDiv.appendChild(gridDiv);
+
+                            // Click handler for expanding/collapsing unit
+                            headerDiv.onclick = function () {
+                                const isCurrentlyActive = itemDiv.classList.contains('active');
+
+                                // Deactivate all items first
+                                sidebarUnitFilters.querySelectorAll('.unit-accordion-item').forEach(item => {
+                                    item.classList.remove('active');
+                                    const body = item.querySelector('.unit-accordion-body');
+                                    if (body) body.style.display = 'none';
+                                });
+
+                                if (!isCurrentlyActive) {
+                                    itemDiv.classList.add('active');
+                                    bodyDiv.style.display = 'block';
+                                    selectedUnitFilter = unit;
+                                    selectedLessonFilter = null; // reset lesson filter on expanding a new unit
+                                } else {
+                                    selectedUnitFilter = null;
+                                    selectedLessonFilter = null;
+                                }
+                                filterResources();
+                            };
+
+                            itemDiv.appendChild(headerDiv);
+                            itemDiv.appendChild(bodyDiv);
+                            sidebarUnitFilters.appendChild(itemDiv);
+                        });
+                    }
+
                     // Populate sections and folders filters based on selected courses
                     function updateSectionsAndFoldersFilters() {
                         const selectedCourseIds = getScopedCourseIds();
@@ -7343,6 +7689,7 @@ echo $OUTPUT->header();
 
                         // All courses when nothing selected; only sections in selected tier/grade/courses when drilling down
                         populateGlobalSectionsFilter(selectedCourseIds);
+                        populateGlobalUnitsFilter(selectedCourseIds);
 
                         if (selectedCourseIds.length === 0) {
                             if (sectionsFilterSelect) {
@@ -7756,6 +8103,9 @@ echo $OUTPUT->header();
 
                     // Filter by resource type (Plan, Teach, Assess) - based on section names
                     let currentResourceTypeFilter = 'all';
+                    let selectedGrades = [];
+                    let selectedUnitFilter = null;
+                    let selectedLessonFilter = null;
                     // Curriculum layer: ksa or gcc only (mutually exclusive; filters by main category name)
                     const showCurriculumFilter = <?php echo ($has_ksa_resources && $has_gcc_resources) ? 'true' : 'false'; ?>;
                     let currentCurriculumFilter = showCurriculumFilter ? '<?php echo $default_curriculum; ?>' : 'all';
@@ -7775,6 +8125,12 @@ echo $OUTPUT->header();
                                 (currentCurriculumFilter === 'ksa' && cardCategory.includes('ksa')) ||
                                 (currentCurriculumFilter === 'gcc' && cardCategory.includes('gcc'));
                             if (!matchesCurriculum) return;
+
+                            // Respect selected grades for tab counts
+                            if (typeof selectedGrades !== 'undefined' && selectedGrades.length > 0) {
+                                const cardGrade = parseInt(card.getAttribute('data-grade') || '0');
+                                if (!selectedGrades.includes(cardGrade)) return;
+                            }
 
                             allCount++;
                             const folderTag = (card.getAttribute('data-folder-tag') || '').toLowerCase().trim();
@@ -7833,60 +8189,60 @@ echo $OUTPUT->header();
                             }
                         });
 
-                        // Collapsible: show second level (All Resources, Plan, Teach, Assess) only when first level is selected
-                        const tierCardsContainer = document.querySelector('.tier-cards-container');
-                        if (tierCardsContainer) {
-                            tierCardsContainer.classList.add('second-level-visible');
-                            tierCardsContainer.classList.add('expanded');
-                            if (typeof populateTierCardCategories === 'function') {
-                                populateTierCardCategories();
-                                setTimeout(function () {
-                                    if (typeof renderSelectedCourses === 'function') renderSelectedCourses();
-                                }, 100);
-                            }
-                        }
-
                         if (typeof updateSectionsAndFoldersFilters === 'function') {
                             setTimeout(function () { updateSectionsAndFoldersFilters(); }, 50);
                         }
                         filterResources();
                         setTimeout(function () {
-                            if (typeof updateResourceTabCounts === 'function') updateResourceTabCounts();
+                            if (typeof updateResourceTabCounts === 'function') {
+                                updateResourceTabCounts();
+                            }
+                        }, 200);
+                    }
+
+                    function toggleSidebarGrade(grade) {
+                        const pill = document.querySelector(`.grade-pill[data-grade="${grade}"]`);
+                        if (!pill) return;
+
+                        pill.classList.toggle('on');
+
+                        const index = selectedGrades.indexOf(grade);
+                        if (pill.classList.contains('on')) {
+                            if (index === -1) {
+                                selectedGrades.push(grade);
+                            }
+                        } else {
+                            if (index !== -1) {
+                                selectedGrades.splice(index, 1);
+                            }
+                        }
+
+                        filterResources();
+                        setTimeout(function () {
+                            if (typeof updateResourceTabCounts === 'function') {
+                                updateResourceTabCounts();
+                            }
                         }, 200);
                     }
 
                     function filterByResourceType(type) {
                         currentResourceTypeFilter = type;
 
-                        // Update tier cards active state
-                        document.querySelectorAll('.tier-card').forEach(card => {
-                            card.classList.remove('active');
+                        // Update toggle items active state
+                        document.querySelectorAll('.category-toggle-item').forEach(item => {
+                            item.classList.remove('active');
                         });
                         if (type === 'all') {
-                            document.querySelector('.tier-card-0')?.classList.add('active');
+                            document.querySelector('.category-toggle-item[data-tab="all"]')?.classList.add('active');
                         } else if (type === 'plan') {
-                            document.querySelector('.tier-card-1')?.classList.add('active');
+                            document.querySelector('.category-toggle-item[data-tab="planning"]')?.classList.add('active');
                         } else if (type === 'teach') {
-                            document.querySelector('.tier-card-2')?.classList.add('active');
+                            document.querySelector('.category-toggle-item[data-tab="resources"]')?.classList.add('active');
                         } else if (type === 'assess') {
-                            document.querySelector('.tier-card-3')?.classList.add('active');
+                            document.querySelector('.category-toggle-item[data-tab="assessments"]')?.classList.add('active');
                         }
 
-                        // Expand tier cards container and show categories
-                        const tierCardsContainer = document.querySelector('.tier-cards-container');
-                        if (tierCardsContainer) {
-                            tierCardsContainer.classList.add('expanded');
-                            // Populate categories when expanded
-                            if (typeof populateTierCardCategories === 'function') {
-                                populateTierCardCategories();
-                                // Render courses after categories are populated
-                                setTimeout(function () {
-                                    if (typeof renderSelectedCourses === 'function') {
-                                        renderSelectedCourses();
-                                    }
-                                }, 100);
-                            }
-                        }
+
 
                         // Update sections filter to reflect the new active filter
                         // Use a longer timeout to ensure tier card active state is set
@@ -7943,35 +8299,23 @@ echo $OUTPUT->header();
                             }
                         }
 
-                        // Initialize: Expand container and show categories on page load (when curriculum already selected)
-                        setTimeout(function () {
-                            const tierCardsContainer = document.querySelector('.tier-cards-container');
-                            if (tierCardsContainer && tierCardsContainer.classList.contains('second-level-visible')) {
-                                tierCardsContainer.classList.add('expanded');
-                                if (typeof populateTierCardCategories === 'function') {
-                                    populateTierCardCategories();
-                                    // Render courses after categories are populated (in case categories are pre-selected)
-                                    setTimeout(function () {
-                                        if (typeof renderSelectedCourses === 'function') {
-                                            renderSelectedCourses();
-                                        }
-                                    }, 100);
-                                } else {
-                                    console.error('populateTierCardCategories function not found');
-                                }
-                            }
-                        }, 300);
+
                     });
 
                     function filterResources() {
                         const searchTerm = document.getElementById('resourceSearch')?.value.toLowerCase() || '';
                         const allCards = document.querySelectorAll('.resource-card');
 
-                        // Get selected resource types from topbar multi-select checkboxes
+                        // Get selected resource types from checkboxes
                         const selectedResourceTypes = [];
-                        document.querySelectorAll('#resourceTypeFiltersList input[type="checkbox"]:checked').forEach(checkbox => {
-                            selectedResourceTypes.push(checkbox.getAttribute('data-filter-value'));
+                        document.querySelectorAll('input[data-filter-type="resource-type"]:checked').forEach(checkbox => {
+                            const val = checkbox.getAttribute('data-filter-value');
+                            if (val && !selectedResourceTypes.includes(val)) {
+                                selectedResourceTypes.push(val);
+                            }
                         });
+
+                        // Unit filter is tracked globally via selectedUnitFilter and selectedLessonFilter
 
                         // Get selected categories and courses from checkboxes
                         const selectedCategories = [];
@@ -8047,6 +8391,8 @@ echo $OUTPUT->header();
                             let matchesFolder = true;
                             let matchesResourceTypeTab = true;
                             let matchesCurriculum = true;
+                            let matchesGrade = true;
+                            let matchesUnit = true;
 
                             // Curriculum filter (KSA or GCC only - by main category name)
                             if (showCurriculumFilter && typeof currentCurriculumFilter !== 'undefined' && currentCurriculumFilter && currentCurriculumFilter !== 'all') {
@@ -8054,6 +8400,12 @@ echo $OUTPUT->header();
                                     (currentCurriculumFilter === 'gcc' && cardCategory.includes('gcc'));
                             } else {
                                 matchesCurriculum = true;
+                            }
+
+                            // Grade filter (if any grade pills are selected)
+                            if (typeof selectedGrades !== 'undefined' && selectedGrades.length > 0) {
+                                const cardGrade = parseInt(card.getAttribute('data-grade') || '0');
+                                matchesGrade = selectedGrades.includes(cardGrade);
                             }
 
                             // Search filter
@@ -8153,8 +8505,21 @@ echo $OUTPUT->header();
                                     cardFolder.toLowerCase().includes(selectedFolder.toLowerCase());
                             }
 
+                            // Unit filter
+                            if (selectedUnitFilter) {
+                                const cardUnit = (card.getAttribute('data-unit') || '').trim();
+                                if (cardUnit !== selectedUnitFilter) {
+                                    matchesUnit = false;
+                                } else if (selectedLessonFilter) {
+                                    const cardLesson = (card.getAttribute('data-lesson') || '').trim();
+                                    if (cardLesson !== selectedLessonFilter) {
+                                        matchesUnit = false;
+                                    }
+                                }
+                            }
+
                             // Mark card as filtered (matches all criteria)
-                            const isVisible = matchesSearch && matchesResourceType && matchesResourceTypeTab && matchesCurriculum && matchesCategory && matchesSection && matchesFolder;
+                            const isVisible = matchesSearch && matchesResourceType && matchesResourceTypeTab && matchesCurriculum && matchesCategory && matchesSection && matchesFolder && matchesGrade && matchesUnit;
                             card.setAttribute('data-filtered', isVisible ? 'true' : 'false');
 
                             if (isVisible) {
@@ -8404,8 +8769,14 @@ echo $OUTPUT->header();
                     function resetAllFilters() {
                         document.getElementById('resourceSearch').value = '';
 
+                        // Clear selected grades
+                        selectedGrades = [];
+                        document.querySelectorAll('.grade-pill').forEach(pill => {
+                            pill.classList.remove('on');
+                        });
+
                         // Uncheck all resource type filter checkboxes
-                        document.querySelectorAll('#resourceTypeFiltersList input[type="checkbox"]').forEach(checkbox => {
+                        document.querySelectorAll('input[data-filter-type="resource-type"]').forEach(checkbox => {
                             checkbox.checked = false;
                         });
                         if (typeof updateMultiSelectText === 'function') {
@@ -8416,6 +8787,17 @@ echo $OUTPUT->header();
                         });
                         document.querySelectorAll('#sectionsFilters input[type="checkbox"]').forEach(checkbox => {
                             checkbox.checked = false;
+                        });
+                        // Reset Unit & Lesson accordion and state
+                        selectedUnitFilter = null;
+                        selectedLessonFilter = null;
+                        document.querySelectorAll('#sidebarUnitFilters .unit-accordion-item').forEach(item => {
+                            item.classList.remove('active');
+                            const body = item.querySelector('.unit-accordion-body');
+                            if (body) body.style.display = 'none';
+                        });
+                        document.querySelectorAll('#sidebarUnitFilters .lesson-btn').forEach(btn => {
+                            btn.classList.remove('active');
                         });
 
                         // Reset sections select dropdown
