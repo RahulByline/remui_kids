@@ -2016,7 +2016,7 @@ echo $OUTPUT->header();
     }
 
     .unit-accordion-item.active {
-        border-color: #2563eb;
+        border-color: #ff8403;
         box-shadow: 0 2px 8px rgba(37, 99, 235, 0.05);
     }
 
@@ -2036,7 +2036,7 @@ echo $OUTPUT->header();
     }
 
     .unit-accordion-item.active .unit-accordion-header {
-        background: #f0f7ff;
+        background: #fef1e9;
         border-bottom: 1px solid #cbd5e1;
     }
 
@@ -2061,7 +2061,7 @@ echo $OUTPUT->header();
 
     .unit-accordion-item.active .unit-accordion-header i.toggle-arrow {
         transform: rotate(180deg);
-        color: #2563eb;
+        color: #ff8403;
     }
 
     .unit-accordion-body {
@@ -2097,16 +2097,16 @@ echo $OUTPUT->header();
     }
 
     .lesson-btn:hover {
-        border-color: #2563eb;
-        color: #2563eb;
-        background: #f0f7ff;
+        border-color: #ff8403;
+        color: #ff8403;
+        background: #fef1e9;
     }
 
     .lesson-btn.active {
-        background: #2563eb;
-        border-color: #2563eb;
+        background: #ff8403;
+        border-color: #ff8403;
         color: #ffffff;
-        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+        box-shadow: 0 2px 6px rgba(255, 132, 3, 0.2);
     }
 
     /* Custom scrollbar for filter sidebar */
@@ -5586,8 +5586,29 @@ echo $OUTPUT->header();
 
                             <!-- Main Content Area -->
                             <div class="resources-content-area">
-                                <!-- Resources Grid -->
-                                <div class="resources-grid-container">
+
+                                <!-- Filtered Results Grid -->
+                                <div class="filtered-results-container" id="filteredResultsContainer"
+                                    style="display: none; margin-bottom: 24px; background-color: #f8fafc; padding: 24px; border-radius: 12px; border: 1px solid #cbd5e1; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);">
+                                    <div class="resources-grid-header"
+                                        style="border-bottom: 2px solid #cbd5e1; margin-bottom: 24px; padding-bottom: 16px;">
+                                        <div>
+                                            <h3 class="resources-grid-title" style="color: #0f172a;">Filtered Results</h3>
+                                            <p class="resources-grid-subtitle" id="filteredResultsSubtitle">Showing results
+                                                based on your selection</p>
+                                        </div>
+                                        <div class="resources-count" id="filteredResourcesCount"
+                                            style="color: #3b82f6; font-weight: 600;">0 resources</div>
+                                    </div>
+                                    <div class="resources-content">
+                                        <div class="resources-grid" id="filteredResourcesGrid">
+                                            <!-- Will be populated by JS -->
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- All Resources Grid -->
+                                <div class="resources-grid-container" id="allResourcesContainer">
                                     <div class="resources-grid-header">
                                         <div>
                                             <h3 class="resources-grid-title">Resources</h3>
@@ -7629,7 +7650,7 @@ echo $OUTPUT->header();
                     function getVisibleUnitsLessonsMap(scopedCourseIds) {
                         const courseIds = scopedCourseIds.length > 0 ? scopedCourseIds : getAllTeacherCourseIds();
                         const map = {}; // unit -> Set of lessons
-                        document.querySelectorAll('.resource-card').forEach(card => {
+                        document.querySelectorAll('#resourcesGrid .resource-card').forEach(card => {
                             const cardCourseId = parseInt(card.getAttribute('data-course-id'), 10) || 0;
                             if (!courseIds.includes(cardCourseId)) {
                                 return;
@@ -7958,7 +7979,7 @@ echo $OUTPUT->header();
 
                         // Fallback: Also get sections and folders from resource cards (for backward compatibility)
                         // Collect ALL sections from ALL cards - we'll filter them later when displaying
-                        const allCards = document.querySelectorAll('.resource-card');
+                        const allCards = document.querySelectorAll('#resourcesGrid .resource-card');
                         allCards.forEach(card => {
                             const cardCourseId = parseInt(card.getAttribute('data-course-id')) || 0;
                             if (courseIdsForData.includes(cardCourseId)) {
@@ -8222,7 +8243,7 @@ echo $OUTPUT->header();
 
                     // Update resource tab counts based on folder tags (respects curriculum when set)
                     function updateResourceTabCounts() {
-                        const allCards = document.querySelectorAll('.resource-card');
+                        const allCards = document.querySelectorAll('#resourcesGrid .resource-card');
 
                         let allCount = 0;
                         let planCount = 0;
@@ -8414,7 +8435,12 @@ echo $OUTPUT->header();
 
                     function filterResources() {
                         const searchTerm = document.getElementById('resourceSearch')?.value.toLowerCase() || '';
-                        const allCards = document.querySelectorAll('.resource-card');
+                        const allCards = document.querySelectorAll('#resourcesGrid .resource-card');
+                        const filteredResourcesGrid = document.getElementById('filteredResourcesGrid');
+                        const filteredResultsContainer = document.getElementById('filteredResultsContainer');
+                        const filteredResourcesCount = document.getElementById('filteredResourcesCount');
+                        if (filteredResourcesGrid) filteredResourcesGrid.innerHTML = '';
+                        let topGridCount = 0;
 
                         // Get selected resource types from checkboxes
                         const selectedResourceTypes = [];
@@ -8498,6 +8524,14 @@ echo $OUTPUT->header();
                         } catch (e) {
                             recentList = [];
                         }
+
+                        const hasSpecificFilters = (typeof selectedGrades !== 'undefined' && selectedGrades.length > 0) ||
+                            (typeof selectedUnitFilter !== 'undefined' && selectedUnitFilter) ||
+                            (selectedSections.length > 0) ||
+                            (selectedCategories.length > 0) ||
+                            (selectedCourses.length > 0) ||
+                            (typeof tierSelectedCourseNames !== 'undefined' && tierSelectedCourseNames.length > 0) ||
+                            (selectedFolder);
 
                         // Filter cards - mark which cards match filters
                         allCards.forEach(card => {
@@ -8639,7 +8673,22 @@ echo $OUTPUT->header();
                                 }
                             }
 
-                            const matchesAllExceptTabFilter = matchesSearch && matchesResourceType && matchesResourceTypeTab && matchesCurriculum && matchesCategory && matchesSection && matchesFolder && matchesGrade && matchesUnit;
+                            const matchesSpecificFilters = matchesCategory && matchesSection && matchesFolder && matchesGrade && matchesUnit;
+                            const matchesBaseFilters = matchesSearch && matchesResourceType && matchesResourceTypeTab && matchesCurriculum;
+
+                            // Top Grid Logic
+                            if (hasSpecificFilters && matchesSpecificFilters && matchesBaseFilters) {
+                                if (filteredResourcesGrid) {
+                                    const clonedCard = card.cloneNode(true);
+                                    clonedCard.classList.add('cloned-card');
+                                    clonedCard.style.display = ''; // Ensure it's visible
+                                    filteredResourcesGrid.appendChild(clonedCard);
+                                    topGridCount++;
+                                }
+                            }
+
+                            // Bottom Grid Logic (Always shows all resources, ignoring specific filters)
+                            const matchesAllExceptTabFilter = matchesBaseFilters;
 
                             if (matchesAllExceptTabFilter) {
                                 countAll++;
@@ -8672,6 +8721,18 @@ echo $OUTPUT->header();
                                 visibleCount++;
                             }
                         });
+
+                        // Update Top Grid visibility
+                        if (filteredResultsContainer) {
+                            if (hasSpecificFilters && topGridCount > 0) {
+                                filteredResultsContainer.style.display = 'block';
+                                if (filteredResourcesCount) {
+                                    filteredResourcesCount.textContent = topGridCount + ' resource' + (topGridCount !== 1 ? 's' : '');
+                                }
+                            } else {
+                                filteredResultsContainer.style.display = 'none';
+                            }
+                        }
 
                         // Update tab count badges
                         const countAllEl = document.getElementById('count-all-tab');
@@ -8710,7 +8771,7 @@ echo $OUTPUT->header();
                         if (countElement) {
                             if (count === undefined) {
                                 // Count all filtered cards
-                                const allCards = document.querySelectorAll('.resource-card');
+                                const allCards = document.querySelectorAll('#resourcesGrid .resource-card');
                                 count = Array.from(allCards).filter(card =>
                                     card.getAttribute('data-filtered') === 'true'
                                 ).length;
@@ -8722,7 +8783,7 @@ echo $OUTPUT->header();
                         const totalResourcesElement = document.getElementById('totalResourcesCount');
                         if (totalResourcesElement) {
                             if (count === undefined) {
-                                const allCards = document.querySelectorAll('.resource-card');
+                                const allCards = document.querySelectorAll('#resourcesGrid .resource-card');
                                 count = Array.from(allCards).filter(card =>
                                     card.getAttribute('data-filtered') === 'true'
                                 ).length;
@@ -8733,7 +8794,7 @@ echo $OUTPUT->header();
 
                     // Apply pagination to show only items for current page
                     function applyPagination() {
-                        const allCards = document.querySelectorAll('.resource-card');
+                        const allCards = document.querySelectorAll('#resourcesGrid .resource-card');
                         const filteredCards = Array.from(allCards).filter(card =>
                             card.getAttribute('data-filtered') === 'true'
                         );
@@ -8896,7 +8957,7 @@ echo $OUTPUT->header();
 
                     // Change page
                     function changePage(page) {
-                        const allCards = document.querySelectorAll('.resource-card');
+                        const allCards = document.querySelectorAll('#resourcesGrid .resource-card');
                         const filteredCards = Array.from(allCards).filter(card =>
                             card.getAttribute('data-filtered') === 'true'
                         );
@@ -9646,7 +9707,7 @@ echo $OUTPUT->header();
                     function sortCards() {
                         const grid = document.getElementById('resourcesGrid');
                         if (!grid) return;
-                        const cards = Array.from(grid.querySelectorAll('.resource-card'));
+                        const cards = Array.from(grid.querySelectorAll('#resourcesGrid .resource-card'));
 
                         let recentList = [];
                         try {
@@ -9755,7 +9816,7 @@ echo $OUTPUT->header();
                     document.addEventListener('DOMContentLoaded', function () {
                         // Wait a tiny bit to ensure all cards are in the DOM
                         setTimeout(function () {
-                            const allCards = document.querySelectorAll('.resource-card');
+                            const allCards = document.querySelectorAll('#resourcesGrid .resource-card');
 
                             // Initialize original index for sorting
                             allCards.forEach((card, idx) => {
